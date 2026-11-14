@@ -1796,25 +1796,8 @@ class PanelBase(Screen):
             err = traceback.format_exc()
             dlog_error("openInfo failed:\n%s" % err)
             self.flash(u"تعذّر فتح معلومات الجهاز | Device info failed - see /tmp/majorpanel_error.log", T()["bad"])
-            src = ""
             try:
-                import dis
-                import Screens.Screen as _scr
-                _code = _scr.Screen.createGUIScreen.__code__
-                _rows = {}
-                for _i in dis.get_instructions(_code):
-                    _ln = getattr(_i, "line_number", None)
-                    if _ln is None:
-                        _pos = getattr(_i, "positions", None)
-                        _ln = getattr(_pos, "lineno", None)
-                    if _ln is not None and 358 <= _ln <= 363:
-                        _rows.setdefault(_ln, []).append("%s %s" % (_i.opname.replace("LOAD_", "L_"), _i.argrepr))
-                src = "\n".join("%d: %s" % (k, " | ".join(v)) for k, v in sorted(_rows.items()))
-                dlog_error("createGUIScreen bytecode:\n%s" % src)
-            except Exception as e:
-                src = "cannot disassemble: %s" % e
-            try:
-                self.session.open(MessageBox, u"Device info error:\n" + err[-120:] + u"\n" + src[:900], MessageBox.TYPE_ERROR)
+                self.session.open(MessageBox, u"Device info error:\n" + err[-400:], MessageBox.TYPE_ERROR)
             except Exception:
                 pass
 
@@ -3204,7 +3187,7 @@ class MajorPanelInfo(Screen):
         except AttributeError:
             self._tconn.append(self.timer.timeout.connect(self.refresh))
         self.onClose.append(self.releaseAll)
-        self.onLayoutFinish.append(safe(self.start))
+        self.onLayoutFinish.append(self.start)
 
     def releaseAll(self):
         self.closing = True
@@ -3217,6 +3200,12 @@ class MajorPanelInfo(Screen):
         release_actions(self["actions"])
 
     def start(self):
+        try:
+            self.build()
+        except Exception:
+            dlog_error("info start failed:\n%s" % traceback.format_exc())
+
+    def build(self):
         try:
             noNativeKeys(self)
         except Exception as e:
