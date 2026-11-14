@@ -1796,8 +1796,17 @@ class PanelBase(Screen):
             err = traceback.format_exc()
             dlog_error("openInfo failed:\n%s" % err)
             self.flash(u"تعذّر فتح معلومات الجهاز | Device info failed - see /tmp/majorpanel_error.log", T()["bad"])
+            src = ""
             try:
-                self.session.open(MessageBox, u"Device info error:\n\n" + err[-700:], MessageBox.TYPE_ERROR)
+                import Screens.Screen as _scr
+                with open(_scr.__file__.replace(".pyc", ".py"), "r", encoding="utf-8", errors="replace") as _f:
+                    _lines = _f.read().splitlines()
+                src = "\n".join("%d: %s" % (i + 1, _lines[i].strip()) for i in range(348, min(368, len(_lines))))
+                dlog_error("Screen.py lines 349-368:\n%s" % src)
+            except Exception as e:
+                src = "cannot read Screen.py: %s" % e
+            try:
+                self.session.open(MessageBox, u"Device info error:\n" + err[-260:] + u"\n\n" + src, MessageBox.TYPE_ERROR)
             except Exception:
                 pass
 
