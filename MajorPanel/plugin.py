@@ -1798,15 +1798,23 @@ class PanelBase(Screen):
             self.flash(u"تعذّر فتح معلومات الجهاز | Device info failed - see /tmp/majorpanel_error.log", T()["bad"])
             src = ""
             try:
+                import dis
                 import Screens.Screen as _scr
-                with open(_scr.__file__.replace(".pyc", ".py"), "r", encoding="utf-8", errors="replace") as _f:
-                    _lines = _f.read().splitlines()
-                src = "\n".join("%d: %s" % (i + 1, _lines[i].strip()) for i in range(348, min(368, len(_lines))))
-                dlog_error("Screen.py lines 349-368:\n%s" % src)
+                _code = _scr.Screen.createGUIScreen.__code__
+                _rows = {}
+                for _i in dis.get_instructions(_code):
+                    _ln = getattr(_i, "line_number", None)
+                    if _ln is None:
+                        _pos = getattr(_i, "positions", None)
+                        _ln = getattr(_pos, "lineno", None)
+                    if _ln is not None and 358 <= _ln <= 363:
+                        _rows.setdefault(_ln, []).append("%s %s" % (_i.opname.replace("LOAD_", "L_"), _i.argrepr))
+                src = "\n".join("%d: %s" % (k, " | ".join(v)) for k, v in sorted(_rows.items()))
+                dlog_error("createGUIScreen bytecode:\n%s" % src)
             except Exception as e:
-                src = "cannot read Screen.py: %s" % e
+                src = "cannot disassemble: %s" % e
             try:
-                self.session.open(MessageBox, u"Device info error:\n" + err[-260:] + u"\n\n" + src, MessageBox.TYPE_ERROR)
+                self.session.open(MessageBox, u"Device info error:\n" + err[-120:] + u"\n" + src[:900], MessageBox.TYPE_ERROR)
             except Exception:
                 pass
 
