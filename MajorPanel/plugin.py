@@ -1790,7 +1790,11 @@ class PanelBase(Screen):
             self.close("reopen")            # يعيد فتح البانل بالعرض والثيم الجديدين
 
     def openInfo(self):
-        self.session.open(InfoScreen)
+        try:
+            self.session.open(MajorPanelInfo)
+        except Exception:
+            dlog_error("openInfo failed:\n%s" % traceback.format_exc())
+            self.flash(u"تعذّر فتح معلومات الجهاز | Device info failed - see /tmp/majorpanel_error.log", T()["bad"])
 
     def askUpdate(self):
         self.session.openWithCallback(
@@ -3131,7 +3135,7 @@ def info_skin(keys):
     return "\n".join(parts)
 
 
-class InfoScreen(Screen):
+class MajorPanelInfo(Screen):
     """INFO key: the receiver details of the panel (model, image, Python, IP, MAC, CPU, RAM, HDD) + USB devices,
     drawn big. LEFT / RIGHT switches between several USB devices; the numbers refresh every 3 seconds."""
     SEGW = 760
@@ -3139,12 +3143,12 @@ class InfoScreen(Screen):
     def __init__(self, session):
         self.t = T()
         self.macs = get_macs()
-        self.keys = [("ip", "IP Address", False)]
+        self.rowdefs = [("ip", "IP Address", False)]
         for i, (lab, _m) in enumerate(self.macs or [("LAN", "")]):
-            self.keys.append(("mac%d" % i, "MAC " + lab, False))
-        self.keys += [("cpu", "CPU", False), ("ram", "RAM", True), ("hdd", "HDD", True), ("sep", "", False),
+            self.rowdefs.append(("mac%d" % i, "MAC " + lab, False))
+        self.rowdefs += [("cpu", "CPU", False), ("ram", "RAM", True), ("hdd", "HDD", True), ("sep", "", False),
                       ("usbn", "USB", False), ("usbm", "Mount", False), ("usbs", "Space", True)]
-        self.skin = info_skin(self.keys)
+        self.skin = info_skin(self.rowdefs)
         Screen.__init__(self, session)
         self.setTitle(TITLE)
         self.closing = False
@@ -3152,7 +3156,7 @@ class InfoScreen(Screen):
         self.usb = []
         self.barKey = {}
         self.segPix = None
-        for k, _l, bar in self.keys:
+        for k, _l, bar in self.rowdefs:
             if k != "sep":
                 self["l_" + k] = Label("")
                 self["v_" + k] = Label("")
@@ -3172,12 +3176,13 @@ class InfoScreen(Screen):
                 "green": self.refresh, "left": lambda: self.moveUsb(-1), "right": lambda: self.moveUsb(1),
                 "up": lambda: None, "down": lambda: None}.items()), -1)
         self.timer = eTimer()
+        self._tconn = []
         try:
             self.timer.callback.append(self.refresh)
         except AttributeError:
-            self._tconn = self.timer.timeout.connect(self.refresh)
+            self._tconn.append(self.timer.timeout.connect(self.refresh))
         self.onClose.append(self.releaseAll)
-        self.onLayoutFinish.append(self.start)
+        self.onLayoutFinish.append(safe(self.start))
 
     def releaseAll(self):
         self.closing = True
@@ -3186,21 +3191,28 @@ class InfoScreen(Screen):
             del self.timer.callback[:]
         except Exception:
             pass
-        self._tconn = None
+        self._tconn = []
         release_actions(self["actions"])
 
     def start(self):
-        noNativeKeys(self)
+        try:
+            noNativeKeys(self)
+        except Exception as e:
+            dlog_error("info noNativeKeys: %s" % e)
         n = BAR_SEGS if self.t["stops"] else 3
-        self.segPix = {"off": pix("seg_off"), "on": [pix("seg_on%d" % i) for i in range(n)]}
-        for k, _l, bar in self.keys:
+        try:
+            self.segPix = {"off": pix("seg_off"), "on": [pix("seg_on%d" % i) for i in range(n)]}
+        except Exception as e:
+            dlog_error("info bars: %s" % e)
+            self.segPix = None
+        for k, _l, bar in self.rowdefs:
             if bar:
                 try:
                     self["bar_" + k].instance.setSelectionEnable(0)
                 except Exception:
                     pass
         self["i_title"].setText(u"معلومات الجهاز | Device Info")
-        for k, lab, _b in self.keys:
+        for k, lab, _b in self.rowdefs:
             if k != "sep":
                 self["l_" + k].setText(lab)
         try:
