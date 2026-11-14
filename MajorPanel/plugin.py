@@ -1793,8 +1793,13 @@ class PanelBase(Screen):
         try:
             self.session.open(MajorPanelInfo)
         except Exception:
-            dlog_error("openInfo failed:\n%s" % traceback.format_exc())
+            err = traceback.format_exc()
+            dlog_error("openInfo failed:\n%s" % err)
             self.flash(u"تعذّر فتح معلومات الجهاز | Device info failed - see /tmp/majorpanel_error.log", T()["bad"])
+            try:
+                self.session.open(MessageBox, u"Device info error:\n\n" + err[-700:], MessageBox.TYPE_ERROR)
+            except Exception:
+                pass
 
     def askUpdate(self):
         self.session.openWithCallback(
