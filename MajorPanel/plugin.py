@@ -100,7 +100,7 @@ _OKS = dict(ok="#34E3A0", bad="#FF4D6D", warn="#FFC53D")
 
 THEMES = {
     "classic": dict(
-        name="Classic", modern=False,
+        name="Night Blue", modern=False,
         bg="#0E1117", card="#161B22", card2="#1C2330", line="#30363D", text="#E6EDF3", muted="#8B949E",
         accent="#58A6FF", second="#3FB950", sel="#1F6FEB", hdr="#1F6FEB", term="#0A0D12",
         red="#DA3633", green="#238636", yellow="#9E6A03", blue="#1F6FEB",
@@ -310,12 +310,169 @@ THEMES = {
         red="#B04C48", green="#3E7D58", yellow="#916C1F", blue="#4B6F8A",
         ok="#8BCBA0", bad="#E58585", warn="#DFB972",
         stops=None, title_set=None, sel_key=None),
+    # ---- V14: ثيمات Modern فاتحة ومريحة للعين (كتابة غامقة واضحة) ----
+    "soft_sky": dict(
+        name="Soft Sky Blue", modern=True, light=True,
+        bg="#E6EFF9", card="#FFFFFF", card2="#F1F6FC", line="#C3D5EA", text="#12202F", muted="#52657A",
+        accent="#1F66C9", second="#0E8466", sel="#CFE2F8", hdr="#1F66C9", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#12202F", selfg="#12202F", selsub="#0B4A94",
+        stops=((31, 102, 201), (20, 140, 200), (20, 160, 160), (60, 170, 110), (200, 160, 40)),
+        title_set=None, sel_key="soft_sky",
+        fill=((214, 230, 249), (178, 208, 243)), border=(31, 102, 201)),
+    "mint_breeze": dict(
+        name="Mint Green", modern=True, light=True,
+        bg="#E4F3EC", card="#FFFFFF", card2="#EFF9F4", line="#BADBC9", text="#10261C", muted="#4F6B5C",
+        accent="#0B8A5E", second="#B5650F", sel="#C9EBD9", hdr="#0B8A5E", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#10261C", selfg="#10261C", selsub="#8A4C08",
+        stops=((11, 138, 94), (20, 160, 120), (90, 170, 80), (190, 160, 40), (210, 110, 40)),
+        title_set=None, sel_key="mint_breeze",
+        fill=((208, 238, 222), (170, 226, 198)), border=(11, 138, 94)),
+    "warm_sand": dict(
+        name="Warm Sand", modern=True, light=True,
+        bg="#F4ECDD", card="#FFFCF5", card2="#FAF4E8", line="#DACCB3", text="#2A1F14", muted="#6B5B48",
+        accent="#B5640F", second="#2D7569", sel="#F1DDBB", hdr="#B5640F", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#2A1F14", selfg="#2A1F14", selsub="#1F5B51",
+        stops=((181, 100, 15), (200, 130, 20), (190, 160, 40), (110, 150, 90), (45, 117, 105)),
+        title_set=None, sel_key="warm_sand",
+        fill=((244, 224, 190), (236, 204, 150)), border=(181, 100, 15)),
+    "lavender": dict(
+        name="Lavender", modern=True, light=True,
+        bg="#EDE9F8", card="#FFFFFF", card2="#F5F2FC", line="#CDC4E6", text="#1F1636", muted="#5E5578",
+        accent="#6446CC", second="#C23F8B", sel="#DCD3F6", hdr="#6446CC", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#1F1636", selfg="#1F1636", selsub="#9A2D69",
+        stops=((100, 70, 204), (130, 90, 210), (180, 90, 200), (200, 80, 160), (200, 100, 100)),
+        title_set=None, sel_key="lavender",
+        fill=((224, 215, 247), (200, 186, 242)), border=(100, 70, 204)),
+    "rose_petal": dict(
+        name="Rose Petal", modern=True, light=True,
+        bg="#F9EBEE", card="#FFFFFF", card2="#FDF3F5", line="#E8C6CE", text="#35151F", muted="#7A5560",
+        accent="#C73566", second="#2F8585", sel="#F6D3DC", hdr="#C73566", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#35151F", selfg="#35151F", selsub="#1F6464",
+        stops=((199, 53, 102), (215, 80, 110), (220, 120, 100), (190, 150, 70), (47, 133, 133)),
+        title_set=None, sel_key="rose_petal",
+        fill=((249, 220, 228), (242, 192, 208)), border=(199, 53, 102)),
+    "aqua_pearl": dict(
+        name="Aqua Pearl", modern=True, light=True,
+        bg="#E3F3F4", card="#FFFFFF", card2="#EEF9FA", line="#B6D9DC", text="#0F2A2E", muted="#4C6E73",
+        accent="#0A8794", second="#CB6A2B", sel="#C5E8EB", hdr="#0A8794", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#0F2A2E", selfg="#0F2A2E", selsub="#9A4C17",
+        stops=((10, 135, 148), (20, 160, 170), (60, 170, 140), (180, 160, 50), (203, 106, 43)),
+        title_set=None, sel_key="aqua_pearl",
+        fill=((204, 236, 239), (166, 224, 229)), border=(10, 135, 148)),
+    "peach_cream": dict(
+        name="Peach Cream", modern=True, light=True,
+        bg="#FBEEE4", card="#FFFDFA", card2="#FEF5EE", line="#EBCDB8", text="#33190D", muted="#7A5C4A",
+        accent="#D45A22", second="#3E70C0", sel="#F9D9C3", hdr="#D45A22", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#33190D", selfg="#33190D", selsub="#2A5497",
+        stops=((212, 90, 34), (225, 120, 50), (225, 160, 60), (150, 150, 110), (62, 112, 192)),
+        title_set=None, sel_key="peach_cream",
+        fill=((251, 225, 207), (246, 200, 172)), border=(212, 90, 34)),
+    "cloud_grey": dict(
+        name="Cloud Grey", modern=True, light=True,
+        bg="#ECEFF3", card="#FFFFFF", card2="#F4F6F9", line="#CBD2DB", text="#18202B", muted="#5A6676",
+        accent="#3E63A8", second="#B8681F", sel="#D5DEEC", hdr="#3E63A8", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#18202B", selfg="#18202B", selsub="#8F4C12",
+        stops=((62, 99, 168), (80, 120, 180), (100, 140, 170), (170, 150, 90), (184, 104, 31)),
+        title_set=None, sel_key="cloud_grey",
+        fill=((218, 226, 240), (192, 206, 232)), border=(62, 99, 168)),
+    # ---- V14: ثيمات Classic جديدة (داكنة هادئة + فاتحة) ----
+    "amber_steel": dict(
+        name="Amber & Steel", modern=False, light=False,
+        bg="#0D0D0F", card="#171719", card2="#1F2024", line="#36383E", text="#EDE7DB", muted="#9C978F",
+        accent="#FFB000", second="#86A2BF", sel="#3E4F63", hdr="#4A5E75", term="#08080A",
+        red="#C8504A", green="#35946A", yellow="#B07D12", blue="#4A6785",
+        ok="#7FD19A", bad="#E5806E", warn="#F2B83A",
+        stops=None, title_set=None, sel_key=None),
+    "olive_cream": dict(
+        name="Olive & Cream", modern=False, light=False,
+        bg="#171A10", card="#212515", card2="#2B301C", line="#444B2D", text="#F4ECD2", muted="#AEAC8C",
+        accent="#EEEE9A", second="#DCCB8E", sel="#4E5B2A", hdr="#66763A", term="#10130A",
+        red="#B9524A", green="#5F8F3E", yellow="#A8892A", blue="#5B7F8F",
+        ok="#A9D98A", bad="#E88A74", warn="#EBD27A",
+        stops=None, title_set=None, sel_key=None),
+    "navy_canary": dict(
+        name="Navy & Canary", modern=False, light=False,
+        bg="#0B1323", card="#131F35", card2="#1A2A47", line="#2F4468", text="#F3F5FB", muted="#94A3BF",
+        accent="#FFEE88", second="#8FB3E6", sel="#24407A", hdr="#2E4F93", term="#070D19",
+        red="#C9505E", green="#2F9B73", yellow="#B79B1C", blue="#3563B5",
+        ok="#7ED8A6", bad="#F08A8A", warn="#FFE36B",
+        stops=None, title_set=None, sel_key=None),
+    "forest_orange": dict(
+        name="Forest & Orange", modern=False, light=False,
+        bg="#0D1910", card="#15251A", card2="#1D3223", line="#355642", text="#EBF3E5", muted="#94AF9B",
+        accent="#FF9A3D", second="#A5D6A0", sel="#20603C", hdr="#2C7D4E", term="#08110B",
+        red="#C65048", green="#2F8F5A", yellow="#B5791E", blue="#3B7D8F",
+        ok="#8EDB9E", bad="#F08672", warn="#F6B04A",
+        stops=None, title_set=None, sel_key=None),
+    "paper_white": dict(
+        name="Paper White", modern=False, light=True,
+        bg="#F2F0EB", card="#FFFFFF", card2="#F8F6F2", line="#D6D0C4", text="#1F2328", muted="#626872",
+        accent="#2F67B0", second="#A8680F", sel="#CBDDF3", hdr="#2F67B0", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#1F2328", selfg="#1F2328", selsub="#8A5208",
+        stops=None, title_set=None, sel_key=None),
+    "sage_light": dict(
+        name="Sage Light", modern=False, light=True,
+        bg="#E9EFE9", card="#F8FBF7", card2="#F1F6F0", line="#C4D5C7", text="#17261D", muted="#566A5C",
+        accent="#2A7551", second="#A85F18", sel="#C6E3D0", hdr="#2A7551", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#17261D", selfg="#17261D", selsub="#8A4C0E",
+        stops=None, title_set=None, sel_key=None),
+    "cream_latte": dict(
+        name="Cream Latte", modern=False, light=True,
+        bg="#F5EDE0", card="#FFFBF3", card2="#FAF3E7", line="#DDCDB5", text="#2B2118", muted="#6C5B49",
+        accent="#935428", second="#397670", sel="#EAD2B6", hdr="#935428", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#2B2118", selfg="#2B2118", selsub="#2A5E58",
+        stops=None, title_set=None, sel_key=None),
+    "powder_blue": dict(
+        name="Powder Blue", modern=False, light=True,
+        bg="#E8EEF5", card="#F9FBFE", card2="#F1F5FA", line="#C5D3E3", text="#17202B", muted="#556579",
+        accent="#33679E", second="#B5701F", sel="#C6D9EE", hdr="#33679E", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#17202B", selfg="#17202B", selsub="#8A5212",
+        stops=None, title_set=None, sel_key=None),
+    "lilac_grey": dict(
+        name="Lilac Grey", modern=False, light=True,
+        bg="#EDEAF2", card="#FBFAFD", card2="#F4F2F8", line="#D0C9E0", text="#221D33", muted="#5F5878",
+        accent="#63539F", second="#AE5473", sel="#D8D0EC", hdr="#63539F", term="#10151B",
+        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#221D33", selfg="#221D33", selsub="#8A3A56",
+        stops=None, title_set=None, sel_key=None),
 }
+for _th in THEMES.values():                  # حقول اللون الإضافية (الثيمات الفاتحة تغيّرها)
+    _th.setdefault("light", False)
+    _th.setdefault("hi", "#FFFFFF")          # لون النص البارز (العناوين / الساعة)
+    _th.setdefault("selfg", "#FFFFFF")       # لون نص الصف المحدد
+    _th.setdefault("selsub", "#DDEEFF")      # لون النص الثانوي في الصف المحدد
 MODERN_ORDER = ["blue_fire", "twilight", "ember_night", "ocean_sun", "aurora", "royal_gold",
                 "sakura", "glacier", "crimson_gold", "violet_storm", "cyber_lime",
-                "neon_blue", "orange", "yellow", "green", "purple", "red", "aqua"]
+                "neon_blue", "orange", "yellow", "green", "purple", "red", "aqua",
+                "soft_sky", "mint_breeze", "warm_sand", "lavender", "rose_petal", "aqua_pearl", "peach_cream", "cloud_grey"]
 CLASSIC_ORDER = ["classic", "graphite", "midnight_indigo", "forest", "warm_slate", "rose_dusk",
-                 "slate_calm", "sage_stone", "mocha_cream", "plum_mist", "sea_glass", "terracotta"]
+                 "slate_calm", "sage_stone", "mocha_cream", "plum_mist", "sea_glass", "terracotta",
+                 "amber_steel", "olive_cream", "navy_canary", "forest_orange", "paper_white", "sage_light", "cream_latte", "powder_blue", "lilac_grey"]
 
 _state = dict(DEFAULT_SETTINGS)
 
@@ -388,7 +545,16 @@ def tc():
     return dict(bg=t["bg"], card=t["card"], card2=t["card2"], line=t["line"], text=t["text"], muted=t["muted"],
                 acc=t["accent"], second=t["second"], sel=t["sel"], hdr=t["hdr"], term=t["term"],
                 red=t["red"], green=t["green"], yellow=t["yellow"], blue=t["blue"],
-                ok=t["ok"], bad=t["bad"], warn=t["warn"])
+                ok=t["ok"], bad=t["bad"], warn=t["warn"],
+                hi=t["hi"], selfg=t["selfg"], selsub=t["selsub"], light=t["light"])
+
+
+def selfg():
+    return int(T()["selfg"].lstrip("#"), 16)
+
+
+def selsub():
+    return int(T()["selsub"].lstrip("#"), 16)
 
 
 _W = max(getDesktop(0).size().width(), 1280)
@@ -766,7 +932,7 @@ def prep_assets(theme_key, anim, splash=False, view="list"):
         if splash:
             _put("splash", a.SPLASH)
         _put("box_default", a.DEFAULT_BOX)
-        if th["modern"]:
+        if th["modern"] and not th.get("light"):
             glow = a.LOGO_GLOW
             if anim:
                 for i, g in enumerate(glow):
@@ -924,11 +1090,14 @@ def _hex_rgb(h):
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 
-def make_rounded_sel(path, w, h, bg_hex, fill_hex, inset=5, radius=16, border=2.0):
+def make_rounded_sel(path, w, h, bg_hex, fill_hex, inset=5, radius=16, border=2.0, light=False):
     """Writes an opaque PNG (w x h): the card color with a rounded, filled selection bar and a lighter thin edge -
     the Classic themes' version of the Modern themes' rounded selection. Only the corner rows are computed."""
     bg, fill = _hex_rgb(bg_hex), _hex_rgb(fill_hex)
-    edge = tuple(min(255, int(c + (255 - c) * 0.38)) for c in fill)
+    if light:                                                  # light themes: a darker thin edge
+        edge = tuple(int(c * 0.72) for c in fill)
+    else:
+        edge = tuple(min(255, int(c + (255 - c) * 0.38)) for c in fill)
     cx, cy = w / 2.0, h / 2.0
     hw, hh = w / 2.0 - inset, h / 2.0 - inset
 
@@ -976,7 +1145,7 @@ def sel_attr(kind, w, h):
         if t["modern"]:
             return ""
         try:
-            make_rounded_sel(p, w, h, t["card"], t["sel"])
+            make_rounded_sel(p, w, h, t["card"], t["sel"], light=t.get("light", False))
         except Exception as e:
             dlog_error("classic selection: %s" % e)
             return ""
@@ -1003,7 +1172,7 @@ def device_layout(y0, pic_h):
 def device_xml(L, x=1340, width=510):
     c = tc()
     out = [
-        wid("b_model", (x, L["model"][0], width, L["model"][1]), font=30, fg="#FFFFFF", halign="center", valign="center"),
+        wid("b_model", (x, L["model"][0], width, L["model"][1]), font=30, fg=c["hi"], halign="center", valign="center"),
         pixw("box_pic", (x, L["pic"][0], width, L["pic"][1])),
         wid("b_image", (x, L["image"][0], width, L["image"][1]), font=22, fg=c["muted"], halign="center", valign="center"),
         wid("b_py", (x, L["py"][0], width, L["py"][1]), font=22, fg=c["second"], halign="center", valign="center"),
@@ -1023,7 +1192,7 @@ def header_xml():
     out = [
         box((0, 0, 1920, 110), c["card"]),
         '<eLabel position="0,%d" size="%d,%d" backgroundColor="%s" zPosition="1"/>' % (s(106), _W, max(2, s(4)), c["hdr"]),
-        wid("title", (156, 20, 520, 70), font=46, fg=(c["acc"] if t["modern"] else "#FFFFFF"), valign="center"),
+        wid("title", (156, 20, 520, 70), font=46, fg=(c["acc"] if t["modern"] else c["hi"]), valign="center"),
         pixw("title_glow", (146, 13, 520, 84)),
         pixw("title_img", (146, 13, 520, 84), z=3),
         pixw("logo_glow", (34, 5, 100, 100)),
@@ -1033,7 +1202,7 @@ def header_xml():
         pixw("cart_img", (1100, 27, 64, 56), z=3),                       # عربة التثبيت المتعدد
         wid("cart_n", (1116, 36, 36, 26), font=22, fg="#FFFFFF", halign="center", valign="center", z=4),
         wid("h_server", (1190, 20, 360, 70), font=28, fg=c["warn"], halign="left", valign="center", extra='noWrap="1"'),
-        wid("clock", (1560, 4, 300, 62), font=52, fg="#FFFFFF", halign="right", valign="center"),
+        wid("clock", (1560, 4, 300, 62), font=52, fg=c["hi"], halign="right", valign="center"),
         wid("date", (1440, 66, 420, 36), font=24, fg=c["muted"], halign="right", valign="center"),
     ]
     return "\n".join(out)
@@ -2345,7 +2514,7 @@ class ListPanel(PanelBase):
             box((1310, 135, 570, 430), c["card"], 24),
             wid("d_cat", (1340, 153, 360, 40), font=26, fg=c["acc"]),
             wid("d_count", (1700, 153, 150, 40), font=26, fg=c["muted"], halign="right"),
-            wid("d_name", (1340, 198, 510, 100), font=38, fg="#FFFFFF", valign="top"),
+            wid("d_name", (1340, 198, 510, 100), font=38, fg=c["hi"], valign="top"),
             wid("d_author", (1340, 302, 510, 40), font=28, fg=c["second"]),
             box((1340, 352, 510, 2), c["line"], z=2),
             wid("d_desc_h", (1340, 364, 510, 34), font=24, fg=c["acc"], halign="right"),
@@ -2386,10 +2555,10 @@ class ListPanel(PanelBase):
                                                              png=icon, flags=BT_SCALE))
             row.append(MultiContentEntryText(pos=(s(76), 0), size=(s(236), s(84)), font=0,
                                              flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=n,
-                                             color=txt, color_sel=0xFFFFFF))
+                                             color=txt, color_sel=selfg()))
             row.append(MultiContentEntryText(pos=(s(316), 0), size=(s(62), s(84)), font=1,
                                              flags=RT_HALIGN_RIGHT | RT_VALIGN_CENTER, text=str(len(items)),
-                                             color=mut, color_sel=0xFFFFFF))
+                                             color=mut, color_sel=selfg()))
             rows.append(row)
         self["cats"].setList(rows)
         self["cats"].moveToIndex(self.catIdx)
@@ -2418,11 +2587,11 @@ class ListPanel(PanelBase):
             row = [it,
                    MultiContentEntryText(pos=(s(24), s(8)), size=(s(470 if (isfav or isq) else 540), s(46)), font=0,
                                          flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=it["name"],
-                                         color=txt, color_sel=0xFFFFFF),
+                                         color=txt, color_sel=selfg()),
                    MultiContentEntryText(pos=(s(24), s(56)), size=(s(330 if (isnew or isq) else 540), s(36)), font=1,
                                          flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER,
                                          text=it["author"] or it["cat"],
-                                         color=sec, color_sel=0xDDEEFF)]
+                                         color=sec, color_sel=selsub())]
             if isfav:                                           # نجمة المفضلة
                 row.append(MultiContentEntryPixmapAlphaBlend(pos=(s(498), s(14)), size=(s(30), s(30)),
                                                              png=star, flags=BT_SCALE))
@@ -2543,7 +2712,7 @@ class GridPanel(PanelBase):
             # --- منطقة العنوان والتفاصيل ---
             wid("g_cap", (40, 135, 700, 34), font=24, fg=c["acc"], bg=c["bg"]),
             wid("g_tags", (740, 135, 260, 34), font=22, fg=c["warn"], bg=c["bg"], halign="right"),
-            wid("g_sec", (40, 170, 960, 76), font=56, fg="#FFFFFF", bg=c["bg"], valign="center"),
+            wid("g_sec", (40, 170, 960, 76), font=56, fg=c["hi"], bg=c["bg"], valign="center"),
             wid("g_name", (40, 252, 960, 46), font=36, fg=c["text"], bg=c["bg"], valign="center"),
             wid("g_author", (40, 298, 960, 34), font=26, fg=c["second"], bg=c["bg"]),
             wid("g_desc", (40, 336, 960, 96), font=30, fg=c["text"], bg=c["bg"], halign="right", valign="top"),
@@ -2552,7 +2721,7 @@ class GridPanel(PanelBase):
         ]
         for i in range(4):
             x = 40 + i * 240
-            parts.append(wid("st%d_v" % i, (x, 450, 240, 40), font=36, fg="#FFFFFF", halign="center", valign="center"))
+            parts.append(wid("st%d_v" % i, (x, 450, 240, 40), font=36, fg=c["hi"], halign="center", valign="center"))
             parts.append(wid("st%d_l" % i, (x, 490, 240, 26), font=18, fg=c["muted"], halign="center", valign="center"))
             if i:
                 parts.append(box((x, 458, 2, 54), c["line"], z=2))
@@ -2865,7 +3034,7 @@ def settings_skin():
         '<screen name="MajorPanelSettings" position="0,0" size="%d,%d" flags="wfNoBorder" backgroundColor="%s">' % (_W, _H, c["bg"]),
         box((0, 0, 1920, 110), c["card"]),
         '<eLabel position="0,%d" size="%d,%d" backgroundColor="%s" zPosition="1"/>' % (s(106), _W, max(2, s(4)), c["hdr"]),
-        wid("s_title", (60, 20, 1000, 70), font=46, fg="#FFFFFF", valign="center"),
+        wid("s_title", (60, 20, 1000, 70), font=46, fg=c["hi"], valign="center"),
         box((360, 150, 1200, 790), c["card"], 24),
         '<widget name="rows" %s backgroundColor="%s" backgroundColorSelected="%s" foregroundColor="%s" '
         'foregroundColorSelected="#FFFFFF" scrollbarMode="showNever" transparent="0" zPosition="2"/>' % (
@@ -2947,10 +3116,10 @@ class SettingsScreen(Screen):
             rows.append([name,
                          MultiContentEntryText(pos=(s(30), 0), size=(s(500), s(64)), font=0,
                                                flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=name,
-                                               color=txt if active else mut, color_sel=0xFFFFFF),
+                                               color=txt if active else mut, color_sel=selfg()),
                          MultiContentEntryText(pos=(s(520), 0), size=(s(590), s(64)), font=0,
                                                flags=RT_HALIGN_RIGHT | RT_VALIGN_CENTER, text=arrows,
-                                               color=acc if active else mut, color_sel=0xFFFFFF)])
+                                               color=acc if active else mut, color_sel=selfg())])
         self["rows"].setList(rows)
         self["rows"].moveToIndex(idx)
         th = THEMES[self.themeKey()]
@@ -3107,10 +3276,10 @@ def info_skin(keys):
         '<screen name="MajorPanelInfo" position="0,0" size="%d,%d" flags="wfNoBorder" backgroundColor="%s">' % (_W, _H, c["bg"]),
         box((0, 0, 1920, 110), c["card"]),
         '<eLabel position="0,%d" size="%d,%d" backgroundColor="%s" zPosition="1"/>' % (s(106), _W, max(2, s(4)), c["hdr"]),
-        wid("i_title", (60, 20, 1300, 70), font=46, fg="#FFFFFF", valign="center"),
-        wid("i_clock", (1560, 20, 300, 70), font=52, fg="#FFFFFF", halign="right", valign="center"),
+        wid("i_title", (60, 20, 1300, 70), font=46, fg=c["hi"], valign="center"),
+        wid("i_clock", (1560, 20, 300, 70), font=52, fg=c["hi"], halign="right", valign="center"),
         box((120, 135, 1680, 800), c["card"], 24),
-        wid("i_model", (140, 165, 560, 80), font=44, fg="#FFFFFF", halign="center", valign="center"),
+        wid("i_model", (140, 165, 560, 80), font=44, fg=c["hi"], halign="center", valign="center"),
         pixw("i_pic", (150, 265, 540, 190)),
         wid("i_image", (140, 470, 560, 46), font=30, fg=c["muted"], halign="center", valign="center"),
         wid("i_py", (140, 520, 560, 46), font=30, fg=c["second"], halign="center", valign="center"),
@@ -3427,7 +3596,7 @@ def scan_line(line, state):
 
 def run_skin():
     c = tc()
-    fill = "#10" + c["card2"].lstrip("#")          # لون الصندوق (شبه معتم)
+    fill = "#10" + (c["term"] if c["light"] else c["card2"]).lstrip("#")          # لون الصندوق (شبه معتم)
     parts = [
         '<screen name="MajorPanelRun" position="0,0" size="%d,%d" flags="wfNoBorder" backgroundColor="#99000000">' % (_W, _H),
         box((258, 83, 1366, 921), c["acc"], 34, z=0),
@@ -3442,7 +3611,7 @@ def run_skin():
         wid("key_red", (370, 924, 190, 58), font=30, fg="#FFFFFF", halign="left", valign="center"),
         box((568, 944, 18, 18), c["green"], 9, z=2),
         wid("key_green", (600, 924, 330, 58), font=30, fg="#FFFFFF", halign="left", valign="center"),
-        wid("status", (940, 924, 630, 58), font=28, fg=c["warn"], halign="right", valign="center"),
+        wid("status", (940, 924, 630, 58), font=28, fg=("#F2B83A" if c["light"] else c["warn"]), halign="right", valign="center"),
         '</screen>',
     ]
     return "\n".join(parts)
@@ -3943,7 +4112,7 @@ def splash_skin():
         '<screen name="MajorPanelSplash" position="0,0" size="%d,%d" flags="wfNoBorder" backgroundColor="%s">' % (_W, _H, c["bg"]),
         pixw("sp_logo", (780, 150, 360, 360), z=3),
         pixw("sp_name", (700, 560, 520, 84), z=3),
-        wid("sp_text", (460, 560, 1000, 84), font=56, fg="#FFFFFF", bg=c["bg"], halign="center", valign="center", z=3),
+        wid("sp_text", (460, 560, 1000, 84), font=56, fg=c["hi"], bg=c["bg"], halign="center", valign="center", z=3),
         wid("sp_by", (460, 655, 1000, 50), font=30, fg=c["muted"], bg=c["bg"], halign="center", valign="center"),
         wid("sp_ver", (460, 702, 1000, 48), font=34, fg=ring_hex(T()), bg=c["bg"], halign="center", valign="center"),
         box((960 - bar_w // 2, 780, bar_w, 8), c["line"], 4, z=2),
