@@ -258,7 +258,7 @@ wget -q --no-check-certificate https://gitlab.com/hmeng80/addons/-/raw/main/metr
 ## ============================== +++ Others +++ ============================= ##
 
 ## === # Major Cenima - John Kamel # = # أداة لإظهار الافلام والمسلسلات المخزنة على الجهاز وعرضها بواجهة سينيمائية # === #
-wget -q --no-check-certificate "https://github.com/major79879/Major_Addons/raw/refs/heads/main/enigma2-plugin-extensions-majorcenima_1.1.1_all.ipk" -O /tmp/majorcenima.ipk && opkg install --force-reinstall /tmp/majorcenima.ipk && rm -f /tmp/majorcenima.ipk && killall -9 enigma2
+wget -q --no-check-certificate "https://github.com/major79879/Major_Addons/raw/refs/heads/main/enigma2-plugin-extensions-majorcenima_1.0.0_all.ipk" -O /tmp/majorcenima.ipk && opkg install --force-reinstall /tmp/majorcenima.ipk && rm -f /tmp/majorcenima.ipk && killall -9 enigma2
 
 ## === # Foot On Sat - Fairbird # = # أداة لإظهار نتائج وقنوات المباريات # === #
 wget https://raw.githubusercontent.com/fairbird/FootOnsat/main/Download/install.sh -O - | /bin/sh
