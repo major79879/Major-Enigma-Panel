@@ -104,8 +104,11 @@ wget https://raw.githubusercontent.com/fairbird/NewVirtualKeyBoard/main/installe
 ## === # NCam EMU - Fairbird # = # أداة لإضافة و إدارة و تشغيل إشتراكات السوفتكام # === ## 
 wget https://raw.githubusercontent.com/biko-73/Ncam_EMU/main/installer.sh -O - | /bin/sh
 
-## === # Oscam Emu - Linuxsat # = # أداة لإضافة و إدارة و تشغيل إشتراكات السوفتكام # === ## 
+## === # Oscam Emu - Linuxsat # = # أداة لإضافة و إدارة و تشغيل إشتراكات السوفتكام # === ##
 wget https://raw.githubusercontent.com/biko-73/OsCam_EMU/main/installer.sh -O - | /bin/sh
+
+## === # Oscam Emu - Mohamed OS # = # أداة لإضافة و إدارة و تشغيل إشتراكات السوفتكام # === ## 
+python -c "$(wget https://raw.githubusercontent.com/MOHAMED19OS/Download/main/Emu/installer.py -qO -)"
 
 ## === # Oscamicam - Kitte888 # = # أداة لإضافة و إدارة و تشغيل إشتراكات السوفتكام # === ## 
 wget https://raw.githubusercontent.com/biko-73/OSCamicam_Kitte888/main/installer.sh -O - | /bin/sh
