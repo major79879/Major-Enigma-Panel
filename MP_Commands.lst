@@ -283,6 +283,9 @@ wget -q "--no-check-certificate" https://raw.githubusercontent.com/ciefp/CiefpSe
 ## === # Abertis 30W - Ciefp # = # اضافة مفضلة قنوات ابيرتيس الاسبانية الارضية لملف قنواتك # === #
 wget -q --no-check-certificate "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/installer_abertis_30w.sh" -O - | /bin/sh
 
+## === # Kids Safe Bouquets - Dorinelu # = # أداة لحذف القنوات الغير مرغوب فيها من كل الاقمار لحماية الاطفال # === 
+wget -q https://raw.githubusercontent.com/dorinelu/KidsSafeBouquets/main/installer.sh -O - | /bin/sh
+
 ## ============================== +++ Picons +++ ============================= ##
 
 ## === # Chocholousek Picons - S3N0 # = # أدة إضافة بيكونات محتلفة لقنوات الاقمار # === #
