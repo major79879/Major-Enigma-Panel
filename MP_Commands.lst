@@ -296,3 +296,52 @@ wget -q https://raw.githubusercontent.com/dorinelu/KidsSafeBouquets/main/install
 
 ## === # Chocholousek Picons - S3N0 # = # أدة إضافة بيكونات محتلفة لقنوات الاقمار # === #
 wget https://github.com/s3n0/e2plugins/raw/master/ChocholousekPicons/online-setup -O - | /bin/sh
+
+## ============================== +++ Bootlogos +++ ============================= ##
+
+## === # Bootlogo_B0001 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0001.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0001.sh" && sh /tmp/installer_B0001.sh
+
+## === # Bootlogo_B0002 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0002.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0002.sh" && sh /tmp/installer_B0002.sh
+
+## === # Bootlogo_B0003 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0003.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0003.sh" && sh /tmp/installer_B0003.sh
+
+## === # Bootlogo_B0004 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0004.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0004.sh" && sh /tmp/installer_B0004.sh
+
+## === # Bootlogo_B0005 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0005.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0005.sh" && sh /tmp/installer_B0005.sh
+
+## === # Bootlogo_B0006 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0006.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0006.sh" && sh /tmp/installer_B0006.sh
+
+## === # Bootlogo_B0007 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0007.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0007.sh" && sh /tmp/installer_B0007.sh
+
+## === # Bootlogo_B0008 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0008.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0008.sh" && sh /tmp/installer_B0008.sh
+
+## === # Bootlogo_B0009 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0009.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0009.sh" && sh /tmp/installer_B0009.sh
+
+## === # Bootlogo_B0010 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0010.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0010.sh" && sh /tmp/installer_B0010.sh
+
+## === # Bootlogo_B0011 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0011.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0011.sh" && sh /tmp/installer_B0011.sh
+
+## === # Bootlogo_B0012 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0012.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0012.sh" && sh /tmp/installer_B0012.sh
+
+## === # Bootlogo_B0013 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0013.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0013.sh" && sh /tmp/installer_B0013.sh
+
+## === # Bootlogo_B0014 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0014.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0014.sh" && sh /tmp/installer_B0014.sh
+
+## === # Bootlogo_B0015 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0015.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0015.sh" && sh /tmp/installer_B0015.sh
+
+
