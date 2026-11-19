@@ -2975,11 +2975,11 @@ class GridPanel(PanelBase):
         self.fillLists()
         self.refreshGrid()
 
-    def items(self):
+    def curItems(self):
         return self.cats[self.catIdx][1] if self.cats else []
 
     def currentItem(self):
-        items = self.items()
+        items = self.curItems()
         return items[self.sel] if 0 <= self.sel < len(items) else None
 
     def pageStart(self):
@@ -2994,13 +2994,13 @@ class GridPanel(PanelBase):
         self.fillItemsList()
 
     def fillItemsList(self):
-        items = self.items()
+        items = self.curItems()
         self["items"].setList([[it] for it in items])
         if items:
             self["items"].moveToIndex(0)
 
     def fillPage(self):
-        items = self.items()
+        items = self.curItems()
         n = len(items)
         start = self.pageStart()
         cat = self.cats[self.catIdx][0] if self.cats else ""
@@ -3030,7 +3030,7 @@ class GridPanel(PanelBase):
                         pass
 
     def placeSel(self):
-        n = len(self.items())
+        n = len(self.curItems())
         try:
             if n:
                 self["items"].moveToIndex(self.sel)
@@ -3051,13 +3051,13 @@ class GridPanel(PanelBase):
         self.placeSel()
 
     def refreshGrid(self):
-        n = len(self.items())
+        n = len(self.curItems())
         self.sel = min(self.sel, max(n - 1, 0))
         self.buildRows()
         self.updateHero()
 
     def updateHero(self):
-        items = self.items()
+        items = self.curItems()
         n = len(items)
         cat = self.cats[self.catIdx][0] if self.cats else ""
         self["g_cap"].setText(("SECTION %02d / %02d%s" % (self.catIdx + 1, len(self.cats), self.filterTag().upper()))
@@ -3149,7 +3149,7 @@ class GridPanel(PanelBase):
         self.markNewSeen()
 
     def moveSel(self, delta):
-        n = len(self.items())
+        n = len(self.curItems())
         if not n:
             return
         new = min(max(self.sel + delta, 0), n - 1)
@@ -3175,7 +3175,7 @@ class GridPanel(PanelBase):
             self.moveSel(-GRID_COLS)
 
     def keyDown(self):
-        n = len(self.items())
+        n = len(self.curItems())
         if n and self.sel // GRID_COLS >= (n - 1) // GRID_COLS and len(self.cats) > 1:   # آخر صف: القسم التالي
             self.moveCat(1)
         else:
@@ -3827,13 +3827,13 @@ class RunScreen(Screen):
         self.t = T()
         self.skin = run_skin()
         Screen.__init__(self, session)
-        self.items = list(items)        # one item, or several that run one after another in this window
-        self.total = len(self.items)
+        self.runItems = list(items)        # one item, or several that run one after another in this window
+        self.total = len(self.runItems)
         self.batch = self.total > 1
         self.verb = verb
         self.kind = kind                # install | uninstall | update
         self.idx = 0
-        self.item = self.items[0]
+        self.item = self.runItems[0]
         self.before = None              # (folders, packages) of the box just before the current item started
         self.cmds = []                  # commands already started - never shown in the log
         self.nGood = 0
@@ -3978,7 +3978,7 @@ class RunScreen(Screen):
         self.draw()
 
     def titleFor(self, i):
-        base = u"%s %s" % (self.verb, self.items[i].get("name", ""))
+        base = u"%s %s" % (self.verb, self.runItems[i].get("name", ""))
         return (u"(%d/%d)  %s" % (i + 1, self.total, base)) if self.batch else base
 
     def showCounter(self):
@@ -3998,7 +3998,7 @@ class RunScreen(Screen):
     def begin(self, i):
         """Starts item number i (0-based). The items of a multi-install run one after another in this same window."""
         self.idx = i
-        self.item = self.items[i]
+        self.item = self.runItems[i]
         self.holder = {"rc": None, "proc": None, "error": None}
         self.q.clear()
         self.gotOutput = False
