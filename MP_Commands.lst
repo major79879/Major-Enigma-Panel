@@ -1,11 +1,3 @@
-## ================================= +++ Fast Order +++ ================================= ##
-
-## === # Update Linux Commands - John Kamel # = # تحديث ملف أوامر اللينوكس # === ##
-wget -qO- https://raw.githubusercontent.com/major79879/LinuxCommands/refs/heads/main/update_linuxcommands.sh | bash
-
-## === # Update SoftCam Keys - John Kamel # = # تحديث ملف شفرات السوفتكام # === ##
-wget -qO- https://raw.githubusercontent.com/major79879/LinuxCommands/refs/heads/main/update_linuxcommands.sh | bash
-
 ## ================================= +++ Libraries +++ ================================= ##
 
 ## === # WGET - Enigma2 Community # = # مكتبة انيجما مهمة جدا لتشغيل الاضافات بطريقة سليمة # === ##
@@ -100,6 +92,9 @@ wget https://raw.githubusercontent.com/fairbird/backupflash/main/installer.sh -O
 wget https://raw.githubusercontent.com/fairbird/NewVirtualKeyBoard/main/installer.sh -O - | /bin/sh
 
 ## ============================= +++ SoftCam +++ ============================ ##
+
+## === # Update SoftCam Keys - John Kamel # = # تحديث ملف شفرات السوفتكام # === ##
+wget -qO- https://raw.githubusercontent.com/major79879/LinuxCommands/refs/heads/main/update_linuxcommands.sh | bash
 
 ## === # NCam EMU - Fairbird # = # أداة لإضافة و إدارة و تشغيل إشتراكات السوفتكام # === ## 
 wget https://raw.githubusercontent.com/biko-73/Ncam_EMU/main/installer.sh -O - | /bin/sh
