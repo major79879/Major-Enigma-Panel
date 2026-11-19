@@ -295,7 +295,7 @@ wget https://github.com/s3n0/e2plugins/raw/master/ChocholousekPicons/online-setu
 ## ============================== +++ Bootlogos +++ ============================= ##
 
 ## === # Bootlogo_B0001 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
-wget -O /tmp/installer_B0001.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0001.sh" && sh /tmp/installer_B0001.sh
+wget -O /tmp/installer_B0001.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0001.sh" && sed -i 's/\r$//' /tmp/installer_B0001.sh && sh /tmp/installer_B0001.sh
 
 ## === # Bootlogo_B0002 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0002.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0002.sh" && sh /tmp/installer_B0002.sh
