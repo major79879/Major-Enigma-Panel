@@ -2961,9 +2961,10 @@ def plugin_description_skin():
         wid("p_author", (780, 340, 930, 52), font=34, fg=c["second"], valign="center"),
         wid("p_category", (780, 395, 930, 44), font=28, fg=c["acc"], valign="center"),
         box((760, 455, 980, 2), c["line"], z=2),
+        wid("p_desc_h", (780, 466, 930, 38), font=28, fg=c["acc"], halign="right", valign="center"),
         '<widget name="p_desc" %s font="Regular;%d" foregroundColor="%s" backgroundColor="%s" '
         'scrollbarMode="showOnDemand" zPosition="2"/>' % (
-            rect(780, 480, 930, 400), s(34), c["text"], c["card"]),
+            rect(780, 510, 930, 370), s(34), c["text"], c["card"]),
         wid("p_hint", (180, 900, 1560, 42), font=24, fg=c["muted"], bg=c["bg"], halign="center", valign="center"),
         '</screen>',
     ]
@@ -2981,6 +2982,7 @@ class PluginDescriptionScreen(Screen):
         self["p_name"] = Label(item.get("name", ""))
         self["p_author"] = Label((u"by " + item.get("author", "")) if item.get("author") else "")
         self["p_category"] = Label(item.get("cat", ""))
+        self["p_desc_h"] = Label(u"شرح الإضافة | Description")
         self["p_desc"] = ScrollLabel("")
         self["p_desc"].setText(item.get("desc") or u"—")
         self["p_hint"] = Label(u"أعلى/أسفل للتمرير | 0 / EXIT / OK للعودة")
