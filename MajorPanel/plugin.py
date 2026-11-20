@@ -82,7 +82,7 @@ TITLE = "Major Enigma Panel"
 CREDIT = "By John Kamel"
 # تحديث البانل نفسه (إعادة التثبيت) - ملف installer.sh موجود في جذر المستودع (خارج مجلد MajorPanel)
 INSTALLER_URL = GITHUB_RAW + "/installer.sh"
-PLUGIN_VERSION = "3"                                        # رقم إصدار هذه النسخة (يظهر V12) - غيّره مع كل إصدار
+PLUGIN_VERSION = "4"                                        # رقم إصدار هذه النسخة (يظهر V12) - غيّره مع كل إصدار
 VERSION_URL = GITHUB_RAW + "/Version.txt"                    # ملف الإصدار على GitHub: يحوي رقماً فقط مثل 12
 PLUGIN_IMAGES_URL = GITHUB_RAW + "/MajorPanel/pluginImages.json"
 UPDATE_CMD = 'wget -q --no-check-certificate -O - "%s" | /bin/sh -s norestart' % INSTALLER_URL
