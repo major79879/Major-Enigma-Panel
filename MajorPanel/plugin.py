@@ -3687,6 +3687,15 @@ VERB_UNINSTALL = u"إزالة"
 
 LOG_X, LOG_Y, LOG_W, LOG_H, LOG_LINE = 316, 214, 1270, 680, 34
 WRAP_COLS = 84
+MONO_SIZE = 24                  # 84 columns x 0.602 em must stay inside LOG_W
+MONO_FONT = None                # name of the monospaced font once registered (None = not available)
+MONO_PATHS = (os.path.join(PLUGIN_DIR, "fonts", "DejaVuSansMono.ttf"),
+              "/usr/share/fonts/DejaVuSansMono.ttf",
+              "/usr/share/fonts/ttf-dejavu/DejaVuSansMono.ttf",
+              "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+              "/usr/share/fonts/LiberationMono-Regular.ttf",
+              "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf")
+ARABIC_RE = re.compile(u"[\u0600-\u06ff\u0750-\u077f\ufb50-\ufdff\ufe70-\ufeff]")
 MAX_LINES = 300
 MAX_ROWS = 600
 DEF_FG = "#D6E2F5"
@@ -3822,6 +3831,32 @@ def run_in_pty(cmd, holder, out):
     holder["rc"] = rc
 
 
+def register_mono_font():
+    """Registers a monospaced font once, so ASCII-art banners keep their columns (a proportional font breaks them)."""
+    global MONO_FONT
+    if MONO_FONT is not None:
+        return MONO_FONT
+    try:
+        from enigma import addFont
+    except Exception:
+        MONO_FONT = ""
+        return MONO_FONT
+    for path in MONO_PATHS:
+        if not os.path.isfile(path):
+            continue
+        try:
+            try:
+                addFont(path, "MajorMono", 100, False, 0)
+            except TypeError:
+                addFont(path, "MajorMono", 100, False)
+            MONO_FONT = "MajorMono"
+            return MONO_FONT
+        except Exception as e:
+            dlog("mono font failed (%s): %s" % (path, e))
+    MONO_FONT = ""
+    return MONO_FONT
+
+
 class RunScreen(Screen):
     def __init__(self, session, items, verb=VERB_INSTALL, kind="install"):
         self.t = T()
@@ -3864,6 +3899,9 @@ class RunScreen(Screen):
         self["title"] = Label(self.titleFor(0))
         self["log"] = MenuList([], content=eListboxPythonMultiContent)
         self["log"].l.setFont(0, gFont("Regular", s(26)))
+        self.mono = bool(register_mono_font())
+        if self.mono:
+            self["log"].l.setFont(1, gFont(MONO_FONT, s(MONO_SIZE)))
         self["log"].l.setItemHeight(s(LOG_LINE))
         self["sb"] = Label("")
         self["status"] = Label(u"جارٍ التنفيذ... | Running...")
@@ -3954,7 +3992,8 @@ class RunScreen(Screen):
         rows = []
         for seg, color in self.allrows[self.offset:self.offset + vis]:
             rows.append([None, MultiContentEntryText(
-                pos=(0, 0), size=(s(LOG_W), s(LOG_LINE)), font=0,
+                pos=(0, 0), size=(s(LOG_W), s(LOG_LINE)),
+                font=1 if (self.mono and not ARABIC_RE.search(seg)) else 0,
                 flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=seg, color=color, color_sel=color)])
         self["log"].setList(rows)
         try:
