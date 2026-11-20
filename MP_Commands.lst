@@ -338,3 +338,6 @@ wget -O /tmp/installer_B0014.sh "https://raw.githubusercontent.com/major79879/Ma
 
 ## === # Bootlogo_B0015 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0015.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0015.sh" && sed -i 's/\r$//' /tmp/installer_B0015.sh && sh /tmp/installer_B0015.sh
+
+## === # Bootlogo_B0016 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+wget -O /tmp/installer_B0016.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0016.sh" && sed -i 's/\r$//' /tmp/installer_B0016.sh && sh /tmp/installer_B0016.sh
