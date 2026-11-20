@@ -23,13 +23,25 @@ printf '%s\n' '==============================================='
 BASE="https://raw.githubusercontent.com/major79879/Major-Enigma-Panel/refs/heads/main"
 REPO="$BASE/MajorPanel"
 DIR="/usr/lib/enigma2/python/Plugins/Extensions/MajorPanel"
-TMP="/tmp/majorpanel_update"
+TMP=""
 
 C0='\033[0m'; CB='\033[0;34m'; CC='\033[0;36m'; CG='\033[0;32m'; CY='\033[1;33m'; CR='\033[1;31m'
 say() { printf '%b%s%b\n' "$1" "$2" "$C0"; }
 
-rm -rf "$TMP"
-mkdir -p "$TMP"
+if [ "$(id -u)" -ne 0 ]; then
+    say "$CR" "> Run this installer as root."
+    exit 1
+fi
+
+if ! command -v wget >/dev/null 2>&1; then
+    say "$CR" "> wget is required but was not found."
+    exit 1
+fi
+
+TMP=$(mktemp -d /tmp/majorpanel_update.XXXXXX) || {
+    say "$CR" "> Could not create a temporary directory."
+    exit 1
+}
 
 say "$CC" "=========================================================="
 say "$CY" "===              Major Enigma Panel                    ==="
@@ -40,8 +52,25 @@ echo ""
 for f in __init__.py lstparser.py plugin.py assets.py plugin.png; do
     say "$CB" "> Downloading $f ..."
     # __init__.py فارغ بطبيعته، لذلك لا نفحص حجمه
-    if ! wget -q --no-check-certificate "$REPO/$f" -O "$TMP/$f" || { [ "$f" != "__init__.py" ] && [ ! -s "$TMP/$f" ]; }; then
+    if ! wget -q "$REPO/$f" -O "$TMP/$f" || { [ "$f" != "__init__.py" ] && [ ! -s "$TMP/$f" ]; }; then
         say "$CR" "> Failed to download: $f"
+        say "$CR" "> Nothing was changed."
+        rm -rf "$TMP"
+        exit 1
+    fi
+done
+
+# 1-أ) الخطوط المطلوبة للبانل.
+FONTS="DejaVuSansMono.ttf"
+mkdir -p "$TMP/fonts" || {
+    say "$CR" "> Could not create the fonts directory."
+    rm -rf "$TMP"
+    exit 1
+}
+for f in $FONTS; do
+    say "$CB" "> Downloading fonts/$f ..."
+    if ! wget -q "$REPO/fonts/$f" -O "$TMP/fonts/$f" || [ ! -s "$TMP/fonts/$f" ]; then
+        say "$CR" "> Failed to download: fonts/$f"
         say "$CR" "> Nothing was changed."
         rm -rf "$TMP"
         exit 1
@@ -52,10 +81,14 @@ done
 #      لإضافة جهاز جديد: ارفع صورته إلى MajorPanel/boxes/ بالاسم  <موديل الجهاز>.png  ثم أضف اسمها هنا.
 #      فشل تحميل أي صورة لا يوقف التثبيت (تُتجاهل فقط).
 BOXES="sf8008.png sf8008m.png"
-mkdir -p "$TMP/boxes"
+mkdir -p "$TMP/boxes" || {
+    say "$CR" "> Could not create the boxes directory."
+    rm -rf "$TMP"
+    exit 1
+}
 for f in $BOXES; do
     say "$CB" "> Downloading boxes/$f ..."
-    if ! wget -q --no-check-certificate "$REPO/boxes/$f" -O "$TMP/boxes/$f" || [ ! -s "$TMP/boxes/$f" ]; then
+    if ! wget -q "$REPO/boxes/$f" -O "$TMP/boxes/$f" || [ ! -s "$TMP/boxes/$f" ]; then
         say "$CY" "> Skipped (not found): boxes/$f"
         rm -f "$TMP/boxes/$f"
     fi
@@ -63,10 +96,18 @@ done
 
 # 2) ثبّت
 say "$CB" "> Installing files ..."
-mkdir -p "$DIR/boxes"   # مجلد اختياري لصور الأجهزة مثل sf8008.png
+mkdir -p "$DIR/boxes" "$DIR/fonts" || {
+    say "$CR" "> Could not create the installation directories."
+    rm -rf "$TMP"
+    exit 1
+}
 cp -rf "$TMP"/. "$DIR"/ || { say "$CR" "> Copy failed"; rm -rf "$TMP"; exit 1; }
 say "$CB" "> Setting file permissions ..."
-chmod -R 755 "$DIR"
+if ! find "$DIR" -type d -exec chmod 755 {} \; || ! find "$DIR" -type f -exec chmod 644 {} \;; then
+    say "$CR" "> Could not set file permissions."
+    rm -rf "$TMP"
+    exit 1
+fi
 say "$CB" "> Cleaning temporary files ..."
 rm -rf "$TMP"
 
@@ -88,6 +129,9 @@ if [ "$1" != "norestart" ]; then
         i=$((i - 1))
     done
     say "$CG" "> Restarting Enigma2..."
-    killall -9 enigma2
+    if ! killall enigma2; then
+        say "$CR" "> Installation succeeded, but Enigma2 could not be restarted."
+        exit 1
+    fi
 fi
 exit 0
