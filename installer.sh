@@ -49,7 +49,7 @@ say "$CC" "=========================================================="
 echo ""
 
 # 1) حمّل كل الملفات أولاً - لا نلمس النسخة المثبتة إلا بعد نجاح التحميل كاملاً
-for f in __init__.py lstparser.py plugin.py assets.py plugin.png; do
+for f in __init__.py lstparser.py plugin.py plugin_features.py assets.py poster.png pluginImages.json plugin.png; do
     say "$CB" "> Downloading $f ..."
     # __init__.py فارغ بطبيعته، لذلك لا نفحص حجمه
     if ! wget -q "$REPO/$f" -O "$TMP/$f" || { [ "$f" != "__init__.py" ] && [ ! -s "$TMP/$f" ]; }; then
