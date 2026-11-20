@@ -33,7 +33,6 @@ from Components.Label import Label
 from Components.MenuList import MenuList
 from Components.MultiContent import MultiContentEntryPixmapAlphaBlend, MultiContentEntryText
 from Components.Pixmap import Pixmap
-from Components.ScrollLabel import ScrollLabel
 from Plugins.Plugin import PluginDescriptor
 from Screens.ChoiceBox import ChoiceBox
 from Screens.MessageBox import MessageBox
@@ -2962,9 +2961,7 @@ def plugin_description_skin():
         wid("p_category", (780, 395, 930, 44), font=28, fg=c["acc"], valign="center"),
         box((760, 455, 980, 2), c["line"], z=2),
         wid("p_desc_h", (780, 466, 930, 38), font=28, fg=c["acc"], halign="right", valign="center"),
-        '<widget name="p_desc" %s font="Regular;%d" foregroundColor="%s" backgroundColor="%s" '
-        'scrollbarMode="showOnDemand" zPosition="2"/>' % (
-            rect(780, 510, 930, 370), s(34), c["text"], c["card"]),
+        wid("p_desc", (780, 510, 930, 370), font=42, fg=c["text"], halign="right", valign="top"),
         wid("p_hint", (180, 900, 1560, 42), font=24, fg=c["muted"], bg=c["bg"], halign="center", valign="center"),
         '</screen>',
     ]
@@ -2983,20 +2980,13 @@ class PluginDescriptionScreen(Screen):
         self["p_author"] = Label((u"by " + item.get("author", "")) if item.get("author") else "")
         self["p_category"] = Label(item.get("cat", ""))
         self["p_desc_h"] = Label(u"شرح الإضافة | Description")
-        self["p_desc"] = ScrollLabel("")
-        self.descriptionText = item.get("desc") or u"لا يتوفر شرح لهذه الإضافة | No description available."
-        self["p_hint"] = Label(u"أعلى/أسفل للتمرير | 0 / EXIT / OK للعودة")
+        self["p_desc"] = Label(item.get("desc") or u"لا يتوفر شرح لهذه الإضافة | No description available.")
+        self["p_hint"] = Label(u"EXIT / OK / 0 للعودة")
         self["actions"] = ActionMap(
-            ["OkCancelActions", "DirectionActions", "NumberActions"],
-            {"cancel": self.close, "ok": self.close,
-             "0": self.close,
-             "up": self.pageUp, "down": self.pageDown}, -1)
+            ["OkCancelActions", "NumberActions"],
+            {"cancel": self.close, "ok": self.close, "0": self.close}, -1)
         self.onLayoutFinish.append(self.showPluginImage)
-        self.onLayoutFinish.append(self.showDescription)
         self.onClose.append(lambda: release_actions(self["actions"]))
-
-    def showDescription(self):
-        self["p_desc"].setText(self.descriptionText)
 
     def showPluginImage(self):
         pixmap = self.imagePixmap
@@ -3574,7 +3564,7 @@ def settings_skin():
     parts.append('<widget name="swatches" %s backgroundColor="%s" backgroundColorSelected="%s" scrollbarMode="showNever" '
                  'transparent="1" zPosition="2"/>' % (rect(390, 805, 1140, 65), c["card"], c["card"]))
     parts += [
-        wid("s_note", (390, 875, 1140, 75), font=18, fg=c["muted"], valign="center"),
+        wid("s_note", (390, 875, 1140, 75), font=16, fg=c["muted"], valign="center"),
         '<widget name="key_red" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
         'halign="center" valign="center" zPosition="2"/>' % (rect(500, 955, 440, 66), s(30), c["red"], s(16)),
         '<widget name="key_green" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
@@ -3612,8 +3602,9 @@ class SettingsScreen(Screen):
         self["swatches"] = MenuList([], content=eListboxPythonMultiContent)
         self["swatches"].l.setFont(0, gFont("Regular", s(20)))
         self["swatches"].l.setItemHeight(s(65))
-        self["s_note"] = Label(u"Animation / التحريك يستهلكان موارد أكثر. Notifications / الإشعارات: فحص كل 6 ساعات أثناء التشغيل.\n"
-                               u"Auto Check Update: فحص عند فتح البانل. Main Menu: إظهارها بالقائمة. تُطبّق التغييرات بعد الحفظ.")
+        self["s_note"] = Label(u"Animation: uses more CPU/RAM. التحريك يستهلك موارد أكثر.\n"
+                               u"Notifications: checks every 6 hours. الإشعارات تفحص كل 6 ساعات.\n"
+                               u"Auto Update: checks at startup. Main Menu: show/hide. Save: apply.")
         self["key_red"] = Label(u"إلغاء | Cancel")
         self["key_green"] = Label(u"حفظ وتطبيق | Save & Apply")
         self["hint"] = Label("LEFT / RIGHT : change     UP / DOWN : select     OK : on 'Update panel' runs the update")
