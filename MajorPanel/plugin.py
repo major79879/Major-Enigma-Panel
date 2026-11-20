@@ -1414,6 +1414,7 @@ class PanelBase(Screen):
             "pageUp": self.prevCat, "pageDown": self.nextCat,
             "1": self.toggleFav, "2": self.cycleFilter,     # اختصارات تعمل في أي صفحة
             "3": self.toggleMark, "4": self.askUninstall,
+            "0": self.openDescription,
             "5": self.openDescription,
         }
         self["actions"] = ActionMap(ACTION_CONTEXTS, dict((k, safe(v)) for k, v in keys.items()), -1)
@@ -2982,10 +2983,11 @@ class PluginDescriptionScreen(Screen):
         self["p_category"] = Label(item.get("cat", ""))
         self["p_desc"] = ScrollLabel("")
         self["p_desc"].setText(item.get("desc") or u"—")
-        self["p_hint"] = Label(u"أعلى/أسفل للتمرير | EXIT / OK للعودة")
+        self["p_hint"] = Label(u"أعلى/أسفل للتمرير | 0 / EXIT / OK للعودة")
         self["actions"] = ActionMap(
-            ["OkCancelActions", "DirectionActions"],
+            ["OkCancelActions", "DirectionActions", "NumberActions"],
             {"cancel": self.close, "ok": self.close,
+             "0": self.close,
              "up": self.pageUp, "down": self.pageDown}, -1)
         self.onLayoutFinish.append(self.showPluginImage)
         self.onClose.append(lambda: release_actions(self["actions"]))
@@ -3010,7 +3012,7 @@ class PluginDescriptionScreen(Screen):
 
 class ListPanel(PanelBase):
     HINT = ("LEFT/RIGHT : section   UP/DOWN : select   OK : install   1 : fav   2 : filter   3 : select   "
-            "4 : uninstall   5 : description   BLUE : refresh   MENU : settings   INFO : device info")
+            "4 : uninstall   0/5 : expand description   BLUE : refresh   MENU : settings   INFO : device info")
 
     def buildSkin(self):
         c = tc()
@@ -3220,7 +3222,7 @@ class GridPanel(PanelBase):
     DEV = device_layout(125, 110)
     PIC = (1340, DEV["pic"][0], 510, 110)
     HINT = ("ARROWS : move   UP/DOWN at the edge : section   OK : install   1 : fav   2 : filter   3 : select   "
-            "4 : uninstall   5 : description   BLUE : refresh   MENU : settings   INFO : device info")
+            "4 : uninstall   0/5 : expand description   BLUE : refresh   MENU : settings   INFO : device info")
 
     def buildSkin(self):
         c = tc()
