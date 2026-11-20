@@ -105,3 +105,44 @@ def validate_plugin_png(data):
     if not saw_header or not saw_end:
         raise ValueError("incomplete PNG image")
     return data
+
+
+def circle_frame_png(size, color, thickness=5):
+    """Return a small antialiased transparent PNG containing a colored circular ring."""
+    if not isinstance(size, int) or size < 8:
+        raise ValueError("circle frame size must be an integer of at least 8")
+    if (not isinstance(color, (tuple, list)) or len(color) != 3
+            or any(not isinstance(channel, int) or not 0 <= channel <= 255 for channel in color)):
+        raise ValueError("circle frame color must contain three RGB channels")
+    if not isinstance(thickness, int) or thickness < 1 or thickness >= size // 2:
+        raise ValueError("circle frame thickness is out of range")
+
+    samples = 4
+    center = size / 2.0
+    outer = size / 2.0 - 0.5
+    inner = outer - thickness
+    rows = []
+    for y in range(size):
+        row = bytearray(b"\x00")
+        for x in range(size):
+            coverage = 0
+            for sy in range(samples):
+                py = y + (sy + 0.5) / samples - center
+                for sx in range(samples):
+                    px = x + (sx + 0.5) / samples - center
+                    distance = (px * px + py * py) ** 0.5
+                    if inner <= distance <= outer:
+                        coverage += 1
+            row.extend(color)
+            row.append(coverage * 255 // (samples * samples))
+        rows.append(row)
+
+    def chunk(kind, payload):
+        body = kind + payload
+        return struct.pack(">I", len(payload)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+    image = (b"\x89PNG\r\n\x1a\n"
+             + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+             + chunk(b"IDAT", zlib.compress(b"".join(rows), 6))
+             + chunk(b"IEND", b""))
+    return image
