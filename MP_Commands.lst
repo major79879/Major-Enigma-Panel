@@ -154,10 +154,13 @@ wget -O /tmp/mytranslator.ipk "https://github.com/ismailelkhooly/Ismail-/raw/ref
 ## === # My Translator V1.80 - Ismail El Khouly # = # أداة لترجمة النصوص والصوت داخل القنوات # === ##
 wget -O /tmp/mytranslator.ipk "https://github.com/ismailelkhooly/Ismail-/releases/download/V1.80/enigma2-plugin-extensions-mytranslator_1.80.ipk" && opkg install /tmp/mytranslator.ipk && rm -f /tmp/mytranslator.ipk
 
+## === # My Translator V1.81 - Ismail El Khouly # = # أداة لترجمة النصوص والصوت داخل القنوات # === ##
+wget -O /tmp/mytranslator.ipk "https://github.com/ismailelkhooly/Ismail-/releases/download/1.81/enigma2-plugin-extensions-mytranslator_1.81.ipk" && opkg install /tmp/mytranslator.ipk && rm -f /tmp/mytranslator.ipk
+
 ## === # Subextractor Lite - Arian 7S # = # أداة لاستخراج الترجمات المدمجة وإنشاء ملفات ترجمة مستقلة # === ##
 wget https://raw.githubusercontent.com/Arian7s/SubExtractorLite/main/installer.sh -O - | /bin/sh
 
-## === # Channel Lingo - Saiedf # = #  بلاجن شامل الترجمات المدمجة والترجمة الصوتية # === ##
+## === # Channel Lingo - Saiedf # = #  أداة شامللة لتشغيل الترجمات المدمجة والترجمة الصوتية # === ##
 wget -O /tmp/installer_ChannelLingo_auto.sh "https://raw.githubusercontent.com/Saiedf/ChannelLingo/main/Release/UNIVERSAL/installer_ChannelLingo_auto.sh" && sh /tmp/installer_ChannelLingo_auto.sh
 
 ## =============================== +++ EPG +++ ============================== ##
@@ -199,6 +202,9 @@ wget -qO - https://raw.githubusercontent.com/popking159/MyStreamer/refs/heads/ma
 
 ## === # Luka TV - Mohamed Nasser # = # بلاجن تشغيل أي بي تي في المدفوع باضافة الاشتراك # === ##
 wget -qO - https://raw*githubusercontent*com/popking159/LukaTV/refs/heads/main/myinstaller.sh | /bin/sh
+
+## === # Luka Connect - Mohamed Nasser # = # بلاجن تشغيل أي بي تي في المدفوع باضافة الاشتراك # === ##
+wget -qO - https://raw*githubusercontent*com/popking159/lukaconnect/refs/heads/main/myinstaller.sh | /bin/sh
 
 ## === # Xtream New - Ahmed Hussein # = # أداة إضافة و تشغيل إشتراكات الأي بي تي في # === ## 
 wget -q --no-check-certificate "https://raw.githubusercontent.com/ahmedhussein4342-lgtm/XtreamNew/main/install_xtreamnew.sh?cb=$(date +%s)" -O - | /bin/sh
@@ -294,50 +300,50 @@ wget https://github.com/s3n0/e2plugins/raw/master/ChocholousekPicons/online-setu
 
 ## ============================== +++ Bootlogos +++ ============================= ##
 
-## === # Bootlogo_B0001 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0001 - John Kamel # = # إضافة شعار إقلاع صورة أوبن إيه تي في 8 الاصلية # === #
 wget -O /tmp/installer_B0001.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0001.sh" && sed -i 's/\r$//' /tmp/installer_B0001.sh && sh /tmp/installer_B0001.sh
 
-## === # Bootlogo_B0002 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0002 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0002.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0002.sh" && sed -i 's/\r$//' /tmp/installer_B0002.sh && sh /tmp/installer_B0002.sh
 
-## === # Bootlogo_B0003 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0003 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0003.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0003.sh" && sed -i 's/\r$//' /tmp/installer_B0003.sh && sh /tmp/installer_B0003.sh
 
-## === # Bootlogo_B0004 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0004 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0004.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0004.sh" && sed -i 's/\r$//' /tmp/installer_B0004.sh && sh /tmp/installer_B0004.sh
 
-## === # Bootlogo_B0005 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0005 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0005.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0005.sh" && sed -i 's/\r$//' /tmp/installer_B0005.sh && sh /tmp/installer_B0005.sh
 
-## === # Bootlogo_B0006 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0006 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0006.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0006.sh" && sed -i 's/\r$//' /tmp/installer_B0006.sh && sh /tmp/installer_B0006.sh
 
-## === # Bootlogo_B0007 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0007 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0007.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0007.sh" && sed -i 's/\r$//' /tmp/installer_B0007.sh && sh /tmp/installer_B0007.sh
 
-## === # Bootlogo_B0008 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0008 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0008.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0008.sh" && sed -i 's/\r$//' /tmp/installer_B0008.sh && sh /tmp/installer_B0008.sh
 
-## === # Bootlogo_B0009 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0009 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0009.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0009.sh" && sed -i 's/\r$//' /tmp/installer_B0009.sh && sh /tmp/installer_B0009.sh
 
-## === # Bootlogo_B0010 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0010 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0010.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0010.sh" && sed -i 's/\r$//' /tmp/installer_B0010.sh && sh /tmp/installer_B0010.sh
 
-## === # Bootlogo_B0011 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0011 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0011.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0011.sh" && sed -i 's/\r$//' /tmp/installer_B0011.sh && sh /tmp/installer_B0011.sh
 
-## === # Bootlogo_B0012 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0012 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0012.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0012.sh" && sed -i 's/\r$//' /tmp/installer_B0012.sh && sh /tmp/installer_B0012.sh
 
-## === # Bootlogo_B0013 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0013 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0013.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0013.sh" && sed -i 's/\r$//' /tmp/installer_B0013.sh && sh /tmp/installer_B0013.sh
 
-## === # Bootlogo_B0014 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0014 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0014.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0014.sh" && sed -i 's/\r$//' /tmp/installer_B0014.sh && sh /tmp/installer_B0014.sh
 
-## === # Bootlogo_B0015 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0015 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0015.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0015.sh" && sed -i 's/\r$//' /tmp/installer_B0015.sh && sh /tmp/installer_B0015.sh
 
-## === # Bootlogo_B0016 - John Kamel # = # إضافة بوت لوجو لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
+## === # Bootlogo_B0016 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0016.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0016.sh" && sed -i 's/\r$//' /tmp/installer_B0016.sh && sh /tmp/installer_B0016.sh
