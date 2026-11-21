@@ -1068,10 +1068,10 @@ def prep_assets(theme_key, anim, splash=False, view="list"):
             for key, data in getattr(a, "ICONS%d" % size).items():
                 _put("ic%d_%s" % (size, key), data)
         _put("pill", a.PILLS[theme_key]["off"])
+        with open(asset_path("plugin_square_frame"), "wb") as f:
+            f.write(square_frame_png(120, _hex_rgb(ring_hex(th)), thickness=6))
         if view == "grid":
             _put("emblem", a.EMBLEM[theme_key])
-            with open(asset_path("plugin_square_frame"), "wb") as f:
-                f.write(square_frame_png(120, _hex_rgb(ring_hex(th)), thickness=6))
         ok = True
     except Exception as e:
         dlog_error("prep_assets failed: %s" % e)
@@ -1610,6 +1610,11 @@ class PanelBase(Screen):
         if self.NO_NATIVE:
             noNativeKeys(self)
         reset_installed_cache()
+        if self.pluginImageFrameWidget:
+            frame = pix("plugin_square_frame")
+            if frame:
+                self[self.pluginImageFrameWidget].instance.setPixmap(frame)
+                self[self.pluginImageFrameWidget].instance.hide()
         self.loadPluginImages()
         self.updateButtons()
         self.loadSegments()
@@ -3031,7 +3036,8 @@ class ListPanel(PanelBase):
             wid("d_cat", (1340, 153, 360, 40), font=26, fg=c["acc"]),
             wid("d_count", (1700, 153, 150, 40), font=26, fg=c["muted"], halign="right"),
             wid("d_name", (1340, 198, 390, 100), font=38, fg=c["hi"], valign="top"),
-            pixw("d_plugin_img", (1740, 202, 105, 105), z=3),
+            pixw("d_plugin_frame", (1732, 194, 120, 120), z=3),
+            pixw("d_plugin_img", (1740, 202, 105, 105), z=4),
             wid("d_author", (1340, 302, 510, 40), font=28, fg=c["second"]),
             box((1340, 352, 510, 2), c["line"], z=2),
             wid("d_desc_h", (1340, 364, 510, 34), font=24, fg=c["acc"], halign="right"),
@@ -3059,6 +3065,8 @@ class ListPanel(PanelBase):
         self["d_desc_h"] = Label(u"شرح الإضافة")
         self["d_desc"] = Label("")
         self.pluginImageWidget = "d_plugin_img"
+        self.pluginImageFrameWidget = "d_plugin_frame"
+        self["d_plugin_frame"] = Pixmap()
         self["d_plugin_img"] = Pixmap()
 
     def buildView(self, keepCat=None):
@@ -3328,10 +3336,6 @@ class GridPanel(PanelBase):
             if emb and self["emb_bg"].instance:
                 self["emb_bg"].instance.setPixmap(emb)
                 self["emb_bg"].instance.show()
-            frame = pix("plugin_square_frame")
-            if frame and self["g_plugin_frame"].instance:
-                self["g_plugin_frame"].instance.setPixmap(frame)
-                self["g_plugin_frame"].instance.hide()
         except Exception:
             pass
         PanelBase.start(self)
