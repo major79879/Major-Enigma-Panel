@@ -1069,7 +1069,7 @@ def prep_assets(theme_key, anim, splash=False, view="list"):
                 _put("ic%d_%s" % (size, key), data)
         _put("pill", a.PILLS[theme_key]["off"])
         with open(asset_path("plugin_square_frame"), "wb") as f:
-            f.write(square_frame_png(120, _hex_rgb(ring_hex(th)), thickness=6))
+            f.write(square_frame_png(120, th.get("stops") or _hex_rgb(ring_hex(th)), thickness=6))
         if view == "grid":
             _put("emblem", a.EMBLEM[theme_key])
         ok = True
