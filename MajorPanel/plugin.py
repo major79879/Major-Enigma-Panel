@@ -9,6 +9,7 @@
 import base64
 import collections
 import gc
+import hashlib
 import glob
 import json
 import os
@@ -20,6 +21,7 @@ import struct
 import subprocess
 import sys
 import textwrap
+import threading
 import time
 import traceback
 import zlib
@@ -46,7 +48,7 @@ from twisted.internet.threads import deferToThread
 
 from .lstparser import parse_commands
 from .plugin_features import (MAX_PLUGIN_IMAGE_BYTES, added_plugin_keys,
-                              square_frame_png, is_newer_version, normalize_plugin_image_map,
+                              square_frame_png, frame_png, is_newer_version, normalize_plugin_image_map,
                               plugin_key, plugin_names_by_key, validate_plugin_png)
 
 try:
@@ -99,7 +101,7 @@ PLUGIN_IMAGE_CACHE_PATH = os.path.join(ASSET_DIR, "plugin_image.png")
 NOTIFICATION_INTERVAL_MS = 6 * 60 * 60 * 1000
 NEW_CAT = "New"                                              # اسم قائمة الإضافات الجديدة (تظهر أسفل All)
 DEFAULT_SETTINGS = {"view": "list", "theme": "blue_fire", "anim": False, "mainmenu": True, "splash": True,
-                    "autoupdate": True, "notifications": True}
+                    "autoupdate": True, "notifications": True, "updatecheck": True, "backupdir": ""}
 # ============================================================================
 
 # ---- مصدر واحد لتعريف الثيمات (يُستخدم في plugin.py وفي توليد الصور) ----
@@ -590,15 +592,26 @@ def load_settings():
     _state["splash"] = bool(data.get("splash", DEFAULT_SETTINGS["splash"]))
     _state["autoupdate"] = bool(data.get("autoupdate", DEFAULT_SETTINGS["autoupdate"]))
     _state["notifications"] = bool(data.get("notifications", DEFAULT_SETTINGS["notifications"]))
+    _state["updatecheck"] = bool(data.get("updatecheck", DEFAULT_SETTINGS["updatecheck"]))
+    bdir = data.get("backupdir", "")
+    _state["backupdir"] = bdir if isinstance(bdir, str) and bdir.startswith("/") else ""
     return _state
 
 
-def save_settings(theme, anim=False, mainmenu=True, splash=True, view="list", autoupdate=True, notifications=True):
+def save_settings(theme, anim=False, mainmenu=True, splash=True, view="list", autoupdate=True, notifications=True,
+                  updatecheck=None, backupdir=None):
+    if updatecheck is None:
+        updatecheck = _state.get("updatecheck", True)
+    if backupdir is None:
+        backupdir = _state.get("backupdir", "")
     try:
         with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump({"view": view, "theme": theme, "anim": bool(anim), "mainmenu": bool(mainmenu), "splash": bool(splash),
-                       "autoupdate": bool(autoupdate), "notifications": bool(notifications)}, f)
+                       "autoupdate": bool(autoupdate), "notifications": bool(notifications),
+                       "updatecheck": bool(updatecheck), "backupdir": backupdir or ""}, f)
         _state["notifications"] = bool(notifications)
+        _state["updatecheck"] = bool(updatecheck)
+        _state["backupdir"] = backupdir or ""
         return True
     except Exception:
         return False
@@ -1124,8 +1137,8 @@ def make_pill_texts(masks, th):
                     line[o:o + 3] = cols[x]
                     line[o + 3] = v
             data.append(b"\x00" + bytes(line))
-        write_png_rgba(asset_path("pt_%s_%s" % (word.lower()[:5] if word == "INSTALL" else "insd", kind)), W, H,
-                       b"".join(data))
+        code = {"INSTALL": "insta", "INSTALLED": "insd", "UPDATE": "upd"}.get(word, word.lower())
+        write_png_rgba(asset_path("pt_%s_%s" % (code, kind)), W, H, b"".join(data))
 
 
 def pill_text_color(th):
@@ -1185,8 +1198,9 @@ def prep_assets(theme_key, anim, splash=False, view="list"):
         except Exception as e:
             dlog_error("pill texts: %s" % e)
         with open(asset_path("plugin_square_frame"), "wb") as f:
-            f.write(square_frame_png(160 if view == "grid" else 120, th.get("stops") or _hex_rgb(ring_hex(th)),
-                                     thickness=8 if view == "grid" else 6))
+            cols = th.get("stops") or _hex_rgb(ring_hex(th))
+            f.write(frame_png(232, 160, cols, thickness=8) if view == "grid"      # مستطيل بانر
+                    else square_frame_png(120, cols, thickness=6))
         if view == "grid":
             _put("emblem", a.EMBLEM[theme_key])
         ok = True
@@ -1222,6 +1236,8 @@ def icon_key(cat_name):
         return "star"
     if n == "new":
         return "bolt"
+    if n == "updates":
+        return "spinner"
     if n.startswith("search:"):
         return "search"
     for word, icon in ICON_RULES:
@@ -1582,6 +1598,7 @@ class PanelBase(Screen):
         self.tickTimer = self.makeTimer(self.onTick)        # مؤقت واحد: الساعة كل 2 ثانية والإحصاءات كل 4
         self.titleTimer = self.makeTimer(self.titleTick)    # للحركة فقط (اختياري)
         self.flashTimer = self.makeTimer(self.restoreHint)  # رسالة قصيرة في سطر المساعدة
+        self.updTimer = self.makeTimer(self.pollUpdates)    # نتيجة فحص التحديثات تصل من خيط خلفي
         self.onClose.append(self.releaseAll)
         self.onExecBegin.append(self.resumeTitle)
         self.onExecEnd.append(self.pauseTitle)
@@ -1791,7 +1808,7 @@ class PanelBase(Screen):
         """On close: stop and DISCONNECT the timers (so the screen can be freed), unbind the keys
         explicitly (nothing may stay bound after the panel is closed) and free pictures / data."""
         self.closing = True
-        for tm in (self.tickTimer, self.titleTimer, self.flashTimer):
+        for tm in (self.tickTimer, self.titleTimer, self.flashTimer, self.updTimer):
             try:
                 tm.stop()
                 del tm.callback[:]
@@ -1974,6 +1991,37 @@ class PanelBase(Screen):
         self.indexItems()
         self.noteSeen()
         self.buildView(keepCat)
+        self.beginUpdateScan()
+
+    def beginUpdateScan(self):
+        if not updates_enabled():
+            return
+        start_update_scan()
+        try:
+            self.updTimer.start(2500, False)
+        except Exception:
+            pass
+
+    def pollUpdates(self):
+        if self.closing:
+            return
+        if not updates_enabled() or (_upd["done"] and _upd["applied"]):
+            self.updTimer.stop()
+            return
+        if not _upd["done"] or _upd["applied"]:
+            return
+        _upd["applied"] = True
+        self.updTimer.stop()
+        _installed["upd"] = {}
+        try:
+            it = self.currentItem()
+            self.rebuild(item_key(it) if it else None, self.selIndex())
+            n = len([1 for _c, items in self.allcats for x in items if update_available(x)])
+            flush_installed_hashes()
+            if n:
+                self.flash(u"%d update(s) available  -  see 'Updates'" % n)
+        except Exception as e:
+            dlog_error("pollUpdates: %s" % e)
 
     def categoriesFor(self, keepCat=None):
         """Applies favorites, the sort / filter mode and the search query; fills self.cats and self.catIdx."""
@@ -2006,6 +2054,11 @@ class PanelBase(Screen):
             new_items = prep([it for it in everything if item_key(it) in _ui["new"]])
             if new_items:
                 self.cats.append((NEW_CAT, new_items))              # New أسفل All، تظهر فقط عند وجود إضافات جديدة
+            if updates_enabled():
+                upd_items = prep([it for it in everything if update_available(it)])
+                flush_installed_hashes()
+                if upd_items:
+                    self.cats.append((UPD_CAT, upd_items))          # Updates: الإضافات المثبتة التي لها نسخة أحدث
             for c, items in self.allcats:
                 p = prep(items)
                 if p or mode in ("all", "az"):                      # الفلتر يخفي الأقسام الفارغة
@@ -2162,7 +2215,10 @@ class PanelBase(Screen):
         it = self.currentItem()
         if not it:
             return
-        ask(self.session, self.confirmed, u"%s\n\nتنفيذ التثبيت الآن؟\nInstall now?" % it["name"])
+        if updates_enabled() and update_available(it):
+            ask(self.session, self.confirmed, u"%s\n\nيوجد تحديث. تحديث الآن؟\nUpdate available. Update now?" % it["name"])
+        else:
+            ask(self.session, self.confirmed, u"%s\n\nتنفيذ التثبيت الآن؟\nInstall now?" % it["name"])
 
     def confirmed(self, answer):
         it = self.currentItem()
@@ -2197,6 +2253,10 @@ class PanelBase(Screen):
         except Exception:
             pass
         reset_installed_cache()
+        if updates_enabled():
+            _upd["started"] = False
+            _upd["applied"] = False
+            self.beginUpdateScan()
         _ui["queue"][:] = [k for k in _ui["queue"] if k not in ran]
         try:
             self.updateButtons()
@@ -2444,7 +2504,7 @@ FILTERS = (("all", u"All"), ("az", u"Sort A-Z"), ("todo", u"Not installed"), ("d
 _PKG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9+._-]*$")
 _STATUS_RE = re.compile(r"\binstall\b.*\binstalled\b")
 _PKG_PREFIX_RE = re.compile(r"^enigma2-plugin-(extensions|systemplugins|softcams|skins|picons|settings|drivers|channel-settings)?-?")
-_installed = {"data": None, "sys": None, "res": {}}
+_installed = {"data": None, "sys": None, "res": {}, "upd": {}, "dirty": False}
 _ui = {"filter": 0, "queue": [], "new": set()}        # حالة الواجهة: تبقى عند إعادة فتح البانل وتُمسح عند الخروج
 
 
@@ -2657,13 +2717,17 @@ def load_installed():
             dirs = [d for d in rec.get("dirs", []) if safe_plugin_dir(d)]
             pkgs = [p for p in rec.get("pkgs", []) if isinstance(p, str) and _PKG_RE.match(p)]
             items[k] = {"dirs": dirs, "pkgs": pkgs, "ts": int(rec.get("ts", 0) or 0)}
-        _installed["data"] = {"keys": keys, "items": items}
+        hashes = raw.get("hashes")
+        hashes = dict((k, v) for k, v in (hashes.items() if isinstance(hashes, dict) else [])
+                      if isinstance(k, str) and isinstance(v, str))
+        _installed["data"] = {"keys": keys, "items": items, "hashes": hashes}
     return _installed["data"]
 
 
 def save_installed():
     d = load_installed()
-    _write_json(INSTALLED_FILE, {"keys": sorted(d["keys"]), "items": d["items"]})
+    _write_json(INSTALLED_FILE, {"keys": sorted(d["keys"]), "items": d["items"], "hashes": d["hashes"]})
+    _installed["dirty"] = False
 
 
 def system_state():
@@ -2678,6 +2742,7 @@ def reset_installed_cache():
     _installed["data"] = None
     _installed["sys"] = None
     _installed["res"] = {}
+    _installed["upd"] = {}
 
 
 def removable_pkgs(rec):
@@ -2691,6 +2756,180 @@ def removable_pkgs(rec):
 
 def record_alive(rec, dirs, pkgs):
     return any(d in dirs for d in rec["dirs"]) or any(p in pkgs for p in removable_pkgs(rec))
+
+
+# ============================ كشف التحديثات ============================
+UPDATES_FILE = "/etc/enigma2/majorpanel_updates.json"     # آخر نتيجة فحص (حزم opkg القابلة للترقية)
+UPD_CAT = "Updates"
+_upd = {"pkgs": set(), "done": False, "busy": False, "started": False, "applied": True}
+
+
+def updates_enabled():
+    return bool(_state.get("updatecheck", True))
+
+
+def cmd_hash(it):
+    return hashlib.md5((it.get("cmd") or "").encode("utf-8", "ignore")).hexdigest()[:12]
+
+
+def _scan_upgradable():
+    """Thread: refreshes the opkg lists (at most every 12 h) and reads `opkg list-upgradable`."""
+    names = set()
+    try:
+        st = _read_json(UPDATES_FILE, {})
+        st = st if isinstance(st, dict) else {}
+        now = time.time()
+        if now - float(st.get("update_ts", 0) or 0) > 12 * 3600:
+            try:
+                subprocess.run(["opkg", "update"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+            except Exception:
+                pass
+            st["update_ts"] = now
+        r = subprocess.run(["opkg", "list-upgradable"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=60)
+        for line in r.stdout.decode("utf-8", "ignore").splitlines():
+            name = line.split(" - ")[0].strip()
+            if name and _PKG_RE.match(name):
+                names.add(name)
+        st["pkgs"] = sorted(names)
+        st["ts"] = now
+        _write_json(UPDATES_FILE, st)
+    except Exception as e:
+        dlog_error("update scan: %s" % e)
+    _upd["pkgs"] = names
+    _upd["done"] = True
+    _upd["busy"] = False
+    _upd["applied"] = False
+
+
+def start_update_scan():
+    """Loads the last result immediately, then rescans in the background (once per panel session)."""
+    if not updates_enabled() or _upd["started"]:
+        return
+    _upd["started"] = True
+    _upd["done"] = False
+    st = _read_json(UPDATES_FILE, {})
+    if isinstance(st, dict):
+        _upd["pkgs"] = set(p for p in st.get("pkgs", []) if isinstance(p, str) and _PKG_RE.match(p))
+    _upd["busy"] = True
+    try:
+        th = threading.Thread(target=_scan_upgradable)
+        th.daemon = True
+        th.start()
+    except Exception as e:
+        _upd["busy"] = False
+        dlog_error("update thread: %s" % e)
+
+
+def update_available(it):
+    """True when an installed item has a newer version: (1) one of its opkg packages is upgradable, or
+    (2) its install command in the online list changed since the panel last installed / saw it."""
+    if not updates_enabled():
+        return False
+    key = item_key(it)
+    cache = _installed["upd"]
+    if key in cache:
+        return cache[key]
+    res = False
+    try:
+        if installed_checker()(it):
+            db = load_installed()
+            dirs, pkgs, _names = system_state()
+            rec = db["items"].get(key)
+            plist = removable_pkgs(rec) if rec else discover_plugin(it, dirs, pkgs)[1]
+            if any(p in _upd["pkgs"] for p in plist):
+                res = True
+            cur = cmd_hash(it)
+            old = db["hashes"].get(key)
+            if old is None:
+                db["hashes"][key] = cur             # أول مرة نراه: نعتبر النسخة الحالية هي الأساس
+                _installed["dirty"] = True
+            elif old != cur:
+                res = True
+    except Exception as e:
+        dlog_error("update_available: %s" % e)
+    cache[key] = res
+    return res
+
+
+def flush_installed_hashes():
+    if _installed["dirty"]:
+        save_installed()
+
+
+# ============================ النسخ الاحتياطي ============================
+BACKUP_PREFIX = "MajorPanel_backup_"
+BACKUP_KEEP = 5
+BACKUP_FILES = (("settings", SETTINGS_FILE), ("favs", FAV_FILE), ("installed", INSTALLED_FILE),
+                ("seen", SEEN_FILE), ("new", NEW_FILE))
+BACKUP_INTERNAL = "/etc/enigma2/majorpanel_backups"
+
+
+def backup_locations():
+    """[(folder, label)]: internal flash + every mounted writable storage under /media."""
+    out = [(BACKUP_INTERNAL, u"Internal  (/etc/enigma2)")]
+    try:
+        for name in sorted(os.listdir("/media")):
+            p = os.path.join("/media", name)
+            if os.path.isdir(p) and (os.path.ismount(p) or os.path.islink(p)) and os.access(p, os.W_OK):
+                out.append((os.path.join(p, "MajorPanel"), u"%s  (/media/%s)" % (name.upper(), name)))
+    except OSError:
+        pass
+    return out
+
+
+def backup_label(folder):
+    for path, label in backup_locations():
+        if path == folder:
+            return label
+    return u"%s  (not found)" % folder
+
+
+def list_backups(folder):
+    try:
+        names = [n for n in os.listdir(folder) if n.startswith(BACKUP_PREFIX) and n.endswith(".json")]
+    except OSError:
+        return []
+    return sorted(names, reverse=True)              # الاسم يحمل التاريخ: الأحدث أولاً
+
+
+def make_backup(folder):
+    """Writes MajorPanel_backup_<date>.json (settings, favorites, install records ...). Returns (path, file count)."""
+    data = {"app": "MajorPanel", "format": 1, "created": int(time.time()), "files": {}}
+    for key, path in BACKUP_FILES:
+        v = _read_json(path, None)
+        if v is not None:
+            data["files"][key] = v
+    os.makedirs(folder, exist_ok=True)
+    target = os.path.join(folder, BACKUP_PREFIX + time.strftime("%Y%m%d_%H%M%S") + ".json")
+    if not _write_json(target, data):
+        raise IOError("cannot write to %s" % folder)
+    for old in list_backups(folder)[BACKUP_KEEP:]:
+        try:
+            os.remove(os.path.join(folder, old))
+        except OSError:
+            pass
+    return target, len(data["files"])
+
+
+def restore_backup(path):
+    """Puts a backup file back. Returns the number of restored files."""
+    data = _read_json(path, None)
+    if not isinstance(data, dict) or data.get("app") != "MajorPanel" or not isinstance(data.get("files"), dict):
+        raise ValueError("not a Major Panel backup")
+    n = 0
+    for key, dest in BACKUP_FILES:
+        v = data["files"].get(key)
+        if isinstance(v, (dict, list)) and _write_json(dest, v):
+            n += 1
+    reset_installed_cache()
+    load_settings()
+    return n
+
+
+def backup_stamp(name):
+    """MajorPanel_backup_20261121_182233.json -> '2026-11-21  18:22'"""
+    m = re.search(r"(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})", name)
+    return "%s-%s-%s  %s:%s" % m.groups() if m else name
 
 
 def installed_checker():
@@ -2715,6 +2954,12 @@ def record_install(it, before, after, rc):
     'new' = something new appeared (recorded, Uninstall becomes possible); 'soft' = exit code 0, nothing new,
     but a plugin with that name is on the box (e.g. a re-install); None = nothing to record."""
     key = item_key(it)
+    if rc == 0:                                   # ما نُفِّذ الآن هو آخر نسخة: نحفظ بصمة أمر التثبيت لكشف التحديثات
+        db0 = load_installed()
+        h = cmd_hash(it)
+        if db0["hashes"].get(key) != h:
+            db0["hashes"][key] = h
+            save_installed()
     new_dirs = sorted(d for d in after[0] - before[0] if safe_plugin_dir(d))
     new_pkgs = sorted(p for p in after[1] - before[1] if _PKG_RE.match(p))
     db = load_installed()
@@ -3268,7 +3513,7 @@ class ListPanel(PanelBase):
         qpos = dict((k, i + 1) for i, k in enumerate(_ui["queue"]))
         newk = _ui["new"]
         pill = pix("pill")
-        pt_i, pt_d = pix("pt_insta_l"), pix("pt_insd_l")        # Modern: gradient words
+        pt_i, pt_d, pt_u = pix("pt_insta_l"), pix("pt_insd_l"), pix("pt_upd_l")   # Modern: gradient words
         star = badge_pix("star_small")
         tick = badge_pix("check_small")
         rows = []
@@ -3302,15 +3547,16 @@ class ListPanel(PanelBase):
             if pill:
                 row.append(MultiContentEntryPixmapAlphaBlend(pos=(s(574), s(28)), size=(s(180), s(44)),
                                                              png=pill, flags=BT_SCALE))
-            ptx = pt_d if done else pt_i
+            upd = bool(done) and update_available(it)
+            ptx = pt_u if upd else (pt_d if done else pt_i)
             if ptx:
                 row.append(MultiContentEntryPixmapAlphaBlend(pos=(s(574), s(28)), size=(s(180), s(44)),
                                                              png=ptx, flags=BT_SCALE))
             else:
                 row.append(MultiContentEntryText(pos=(s(574), s(28)), size=(s(180), s(44)), font=2,
                                                  flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
-                                                 text="INSTALLED" if done else "INSTALL",
-                                                 color=acc, color_sel=acc))
+                                                 text="UPDATE" if upd else ("INSTALLED" if done else "INSTALL"),
+                                                 color=warn if upd else acc, color_sel=warn if upd else acc))
             rows.append(row)
         self["items"].setList(rows)
         if rows:
@@ -3414,10 +3660,10 @@ class GridPanel(PanelBase):
             wid("g_cap", (40, 135, 700, 34), font=24, fg=c["oacc"], bg=c["bg"]),
             wid("g_tags", (740, 135, 260, 34), font=22, fg=c["owarn"], bg=c["bg"], halign="right"),
             wid("g_sec", (40, 170, 960, 76), font=56, fg=c["ohi"], bg=c["bg"], valign="center"),
-            wid("g_name", (40, 252, 580, 46), font=36, fg=c["otext"], bg=c["bg"], valign="center"),
-            pixw("g_plugin_img", (643, 168, 134, 134), z=4),            # وسط المساحة الفارغة فوق الشرح (أكبر)
-            pixw("g_plugin_frame", (630, 155, 160, 160), z=3),
-            wid("g_author", (40, 298, 580, 34), font=26, fg=c["osecond"], bg=c["bg"]),
+            wid("g_name", (40, 252, 540, 46), font=36, fg=c["otext"], bg=c["bg"], valign="center"),
+            pixw("g_plugin_img", (607, 168, 206, 134), z=4),            # مستطيل بانر في وسط المساحة الفارغة
+            pixw("g_plugin_frame", (594, 155, 232, 160), z=3),
+            wid("g_author", (40, 298, 540, 34), font=26, fg=c["osecond"], bg=c["bg"]),
             wid("g_desc", (40, 368, 960, 76), font=30, fg=c["otext"], bg=c["bg"], halign="right", valign="top"),
             # --- بطاقة الأرقام ---
             box((40, 446, 960, 74), c["card"], 18),
@@ -3662,7 +3908,8 @@ class GridPanel(PanelBase):
             elif inst:
                 inst.hide()
             timg = self["g_pilltxt_img"].instance
-            ptx = pix("pt_insd_g" if done else "pt_insta_g") if it else None
+            upd = bool(it) and bool(done) and update_available(it)
+            ptx = pix("pt_upd_g" if upd else ("pt_insd_g" if done else "pt_insta_g")) if it else None
             if it and ptx and timg:                      # Modern: gradient word
                 timg.setPixmap(ptx)
                 timg.show()
@@ -3671,8 +3918,8 @@ class GridPanel(PanelBase):
                 if timg:
                     timg.hide()
                 if it:
-                    self["g_pilltxt"].setText("INSTALLED" if done else "INSTALL")
-                    setColor(self["g_pilltxt"], pill_text_color(self.t))
+                    self["g_pilltxt"].setText("UPDATE" if upd else ("INSTALLED" if done else "INSTALL"))
+                    setColor(self["g_pilltxt"], self.t["warn"] if upd else pill_text_color(self.t))
                 else:
                     self["g_pilltxt"].setText("")
         except Exception as e:
@@ -3744,7 +3991,9 @@ class GridPanel(PanelBase):
 
 
 # --------------------------------- شاشة الإعدادات -----------------------------
-SETTINGS_ROWS = ("view", "style", "color", "anim", "splash", "autoupdate", "notifications", "mainmenu", "update")
+SETTINGS_ROWS = ("view", "style", "color", "anim", "splash", "autoupdate", "updatecheck", "notifications", "mainmenu",
+                 "backupdir", "backup", "restore", "update")
+ACTION_ROWS = ("backup", "restore", "update")
 
 
 def settings_sel_attr(w, h):
@@ -3805,6 +4054,9 @@ class SettingsScreen(Screen):
         self.splash = st["splash"]
         self.autoupdate = st["autoupdate"]
         self.notifications = st["notifications"]
+        self.updatecheck = st["updatecheck"]
+        self.backupdir = st["backupdir"] or backup_locations()[0][0]
+        self.orig = self.orig + (self.updatecheck,)
         cur = st["theme"] if st["theme"] in THEMES else MODERN_ORDER[0]
         is_modern = THEMES[cur]["modern"]
         self.style = "modern" if is_modern else "classic"
@@ -3818,9 +4070,9 @@ class SettingsScreen(Screen):
         self["s_prev"] = Label("")
         for i in range(5):
             self["sw%d" % i] = Label("")
-        self["s_note"] = Label(u"Animation: uses more CPU/RAM. التحريك يستهلك موارد أكثر.\n"
-                               u"Notifications: checks every 6 hours. الإشعارات تفحص كل 6 ساعات.\n"
-                               u"Auto Update: checks at startup. Main Menu: show/hide. Save: apply.")
+        self["s_note"] = Label(u"Check Plugin Updates: marks installed plugins that have a newer version ('Updates' section).\n"
+                               u"Backup: saves settings, favorites and install records to the chosen location.\n"
+                               u"Notifications: every 6 hours.  Animation: uses more CPU/RAM.  Save: apply.")
         self["key_red"] = Label(u"إلغاء | Cancel")
         self["key_green"] = Label(u"حفظ وتطبيق | Save & Apply")
         self["hint"] = Label("LEFT / RIGHT : change     UP / DOWN : select     OK : on 'Update panel' runs the update")
@@ -3845,13 +4097,17 @@ class SettingsScreen(Screen):
             ("Animation", "On" if self.anim else "Off", True),
             ("Splash", "On" if self.splash else "Off", True),
             ("Auto Check Update", "On" if self.autoupdate else "Off", True),
+            ("Check Plugin Updates", "On" if self.updatecheck else "Off", True),
             ("Background Notifications", "On" if self.notifications else "Off", True),
             ("Main Menu", "Show" if self.mainmenu else "Hide", True),
+            ("Backup Location", backup_label(self.backupdir), True),
+            ("Backup now", u"Run  \u25b6", True),
+            ("Restore backup", u"Run  \u25b6", True),
             ("Update panel", u"Run  \u25b6", True),
         )
         rows = []
         for i, (name, value, active) in enumerate(values):
-            arrows = ("<  %s  >" % value) if (active and i < len(values) - 1) else value
+            arrows = value if SETTINGS_ROWS[i] in ACTION_ROWS else ("<  %s  >" % value)
             rows.append([name,
                          MultiContentEntryText(pos=(s(30), 0), size=(s(500), s(64)), font=0,
                                                flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=name,
@@ -3903,10 +4159,17 @@ class SettingsScreen(Screen):
             self.splash = not self.splash
         elif row == "autoupdate":
             self.autoupdate = not self.autoupdate
+        elif row == "updatecheck":
+            self.updatecheck = not self.updatecheck
         elif row == "notifications":
             self.notifications = not self.notifications
         elif row == "mainmenu":
             self.mainmenu = not self.mainmenu
+        elif row == "backupdir":
+            paths = [p for p, _l in backup_locations()]
+            if self.backupdir not in paths:
+                paths.append(self.backupdir)
+            self.backupdir = paths[(paths.index(self.backupdir) + step) % len(paths)]
         self.refreshAll()
 
     def left(self):
@@ -3922,13 +4185,52 @@ class SettingsScreen(Screen):
         self["rows"].down()
 
     def ok(self):
-        if self.current() == "update":
+        row = self.current()
+        if row == "update":
             self.session.openWithCallback(
                 self.confirmUpdate, MessageBox,
                 u"تحديث Major Enigma Panel بالكامل (إعادة التثبيت)؟\nUpdate / reinstall the whole panel now?",
                 MessageBox.TYPE_YESNO)
+        elif row == "backup":
+            self.doBackup()
+        elif row == "restore":
+            self.askRestore()
         else:
             self.save()
+
+    def doBackup(self):
+        try:
+            target, n = make_backup(self.backupdir)
+            self.session.open(MessageBox, u"تم النسخ الاحتياطي (%d ملفات)\nBackup saved:\n%s" % (n, target),
+                              MessageBox.TYPE_INFO, timeout=8)
+        except Exception as e:
+            dlog_error("backup: %s" % e)
+            self.session.open(MessageBox, u"فشل النسخ الاحتياطي\nBackup failed:\n%s" % e, MessageBox.TYPE_ERROR)
+
+    def askRestore(self):
+        names = list_backups(self.backupdir)
+        if not names:
+            self.session.open(MessageBox, u"لا توجد نسخة احتياطية في هذا المكان\nNo backup found in:\n%s" % self.backupdir,
+                              MessageBox.TYPE_INFO, timeout=8)
+            return
+        self._restoreFile = os.path.join(self.backupdir, names[0])
+        self.session.openWithCallback(
+            self.confirmRestore, MessageBox,
+            u"استعادة آخر نسخة احتياطية؟\nRestore the latest backup?\n%s\n(%d available)" % (backup_stamp(names[0]), len(names)),
+            MessageBox.TYPE_YESNO)
+
+    def confirmRestore(self, answer):
+        if not answer:
+            return
+        try:
+            n = restore_backup(self._restoreFile)
+        except Exception as e:
+            dlog_error("restore: %s" % e)
+            self.session.open(MessageBox, u"فشلت الاستعادة\nRestore failed:\n%s" % e, MessageBox.TYPE_ERROR)
+            return
+        self.session.openWithCallback(lambda *a: self.close(True), MessageBox,
+                                      u"تمت الاستعادة (%d ملفات). سيُعاد فتح البانل.\nRestored (%d files). The panel reopens." % (n, n),
+                                      MessageBox.TYPE_INFO, timeout=5)
 
     def confirmUpdate(self, answer):
         if answer:
@@ -3939,8 +4241,11 @@ class SettingsScreen(Screen):
 
     def save(self):
         theme = self.themeKey()
-        changed = (self.view, theme, self.anim) != self.orig     # تغيير القائمة الرئيسية لا يحتاج إعادة فتح
-        save_settings(theme, self.anim, self.mainmenu, self.splash, self.view, self.autoupdate, self.notifications)
+        changed = (self.view, theme, self.anim, self.updatecheck) != self.orig     # تغيير القائمة الرئيسية لا يحتاج إعادة فتح
+        if self.updatecheck:
+            _upd["started"] = False
+        save_settings(theme, self.anim, self.mainmenu, self.splash, self.view, self.autoupdate, self.notifications,
+                      self.updatecheck, self.backupdir)
         configure_notification_monitor()
         self.close(changed)
 
