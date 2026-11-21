@@ -529,7 +529,7 @@ THEMES = {
     "mandarin_cream": dict(
         name="Mandarin Cream", modern=False, light=True,
         bg="#0F2447", card="#EFE9D8", card2="#E5DDC8", line="#C8BEA3", text="#15294A", muted="#5E6A7E",
-        accent="#C96800", second="#1F4E8F", sel="#F28A12", hdr="#F28A12", term="#0B1A33",
+        accent="#C96800", second="#1F4E8F", sel="#F8BC70", hdr="#F28A12", term="#0B1A33",
         red="#C9444F", green="#2C8F66", yellow="#B5780F", blue="#2F6FC0",
         ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
         hi="#10244A", selfg="#10244A", selsub="#3A2A10",
