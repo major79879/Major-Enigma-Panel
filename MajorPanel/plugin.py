@@ -546,6 +546,14 @@ THEMES = {
         title_set=None, sel_key="mandarin_cream_m",
         fill=((252, 232, 200), (244, 200, 140)), border=(214, 108, 0),
         onbg=dict(hi="#F6EFE0", text="#E9E2D0", muted="#A9B8D0", acc="#FFA83A", second="#9CC3FF", warn="#FFC266")),
+    # ---- Ultra Neon: ألوان نيون مضيئة (سماوي / بنفسجي / وردي / ذهبي) على خلفية بنفسجية داكنة ----
+    "ultra_neon": dict(
+        name="Ultra Neon", modern=True,
+        bg="#0A0620", card="#150C34", card2="#1D1245", line="#3A2A80", text="#E6F4FF", muted="#8EA2D6",
+        accent="#26E6FF", second="#C78BFF", sel="#2A1B66", hdr="#26E6FF", term="#06031A",
+        stops=((0, 225, 255), (80, 160, 255), (170, 100, 255), (255, 90, 200), (255, 175, 70)),
+        title_set="neon", sel_key="ultra_neon",
+        fill=((8, 30, 70), (60, 25, 40)), border=(38, 230, 255), **_BTN, **_OKS),
 }
 for _th in THEMES.values():                  # حقول اللون الإضافية (الثيمات الفاتحة تغيّرها)
     _th.setdefault("light", False)
@@ -556,7 +564,7 @@ MODERN_ORDER = ["blue_fire", "twilight", "ember_night", "ocean_sun", "aurora", "
                 "sakura", "glacier", "crimson_gold", "violet_storm", "cyber_lime",
                 "neon_blue", "orange", "yellow", "green", "purple", "red", "aqua",
                 "soft_sky", "mint_breeze", "warm_sand", "lavender", "rose_petal", "aqua_pearl", "peach_cream", "cloud_grey",
-                "midnight_neon", "amoled_orchid", "dark_ruby", "matrix_green", "mandarin_cream_m"]
+                "midnight_neon", "amoled_orchid", "dark_ruby", "matrix_green", "mandarin_cream_m", "ultra_neon"]
 CLASSIC_ORDER = ["classic", "graphite", "midnight_indigo", "forest", "warm_slate", "rose_dusk",
                  "slate_calm", "sage_stone", "mocha_cream", "plum_mist", "sea_glass", "terracotta",
                  "amber_steel", "olive_cream", "navy_canary", "forest_orange", "paper_white", "sage_light", "cream_latte", "powder_blue", "lilac_grey",
@@ -1050,6 +1058,81 @@ def make_light_title(mask_b64, stops, frames):
         write_png_rgba(asset_path("f%02d" % k), W, H, b"".join(data))
 
 
+BYLINE_W, BYLINE_H = 240, 44
+
+
+def make_byline(mask_b64, th):
+    """'By John Kamel' in a bold-italic script style. Modern: coloured with the theme gradient; Classic: theme colour.
+    The text shape is a small alpha mask kept in assets.py; the result is written to ASSET_DIR/by_img.png."""
+    W, H = BYLINE_W, BYLINE_H
+    raw = zlib.decompress(base64.b64decode(mask_b64))
+    xs = [x for y in range(H) for x in range(W) if raw[y * W + x]]
+    x0, x1 = (min(xs), max(xs)) if xs else (0, W - 1)
+    stops = th.get("stops")
+    cols = []
+    for x in range(W):
+        if stops:
+            n = len(stops) - 1
+            u = min(max((x - x0) / float(max(1, x1 - x0)), 0.0), 1.0) * n
+            i = min(int(u), n - 1)
+            fr = u - i
+            c0, c1 = stops[i], stops[i + 1]
+            cols.append(bytes(int(c0[j] + (c1[j] - c0[j]) * fr) for j in range(3)))
+        else:
+            cols.append(bytes(_hex_rgb(ring_hex(th))))
+    data = []
+    for y in range(H):
+        line = bytearray(W * 4)
+        for x in range(W):
+            v = raw[y * W + x]
+            if v:
+                o = x * 4
+                line[o:o + 3] = cols[x]
+                line[o + 3] = v
+        data.append(b"\x00" + bytes(line))
+    write_png_rgba(asset_path("by_img"), W, H, b"".join(data))
+
+
+def make_pill_texts(masks, th):
+    """Modern themes: the words INSTALL / INSTALLED as images coloured with the theme gradient
+    (list rows 180x44 -> pt_*_l, Grid badge 230x52 -> pt_*_g)."""
+    stops = th.get("stops")
+    if not stops:
+        return
+    sizes = {"l": (180, 44), "g": (230, 52)}
+    for key, mask_b64 in masks.items():
+        word, kind = key.rsplit("_", 1)
+        W, H = sizes[kind]
+        raw = zlib.decompress(base64.b64decode(mask_b64))
+        xs = [x for y in range(H) for x in range(W) if raw[y * W + x]]
+        x0, x1 = (min(xs), max(xs)) if xs else (0, W - 1)
+        n = len(stops) - 1
+        cols = []
+        for x in range(W):
+            u = min(max((x - x0) / float(max(1, x1 - x0)), 0.0), 1.0) * n
+            i = min(int(u), n - 1)
+            fr = u - i
+            c0, c1 = stops[i], stops[i + 1]
+            cols.append(bytes(int(c0[j] + (c1[j] - c0[j]) * fr) for j in range(3)))
+        data = []
+        for y in range(H):
+            line = bytearray(W * 4)
+            for x in range(W):
+                v = raw[y * W + x]
+                if v:
+                    o = x * 4
+                    line[o:o + 3] = cols[x]
+                    line[o + 3] = v
+            data.append(b"\x00" + bytes(line))
+        write_png_rgba(asset_path("pt_%s_%s" % (word.lower()[:5] if word == "INSTALL" else "insd", kind)), W, H,
+                       b"".join(data))
+
+
+def pill_text_color(th):
+    """INSTALL / INSTALLED text colour in the Grid view (the pill sits on the screen background)."""
+    return (th.get("onbg") or {}).get("acc") or ring_hex(th)
+
+
 def prep_assets(theme_key, anim, splash=False, view="list"):
     """Extracts only the pictures needed for this theme / animation setting."""
     try:
@@ -1092,6 +1175,15 @@ def prep_assets(theme_key, anim, splash=False, view="list"):
             for key, data in getattr(a, "ICONS%d" % size).items():
                 _put("ic%d_%s" % (size, key), data)
         _put("pill", a.PILLS[theme_key]["off"])
+        _put("pill_g", a.PILLS[theme_key].get("grid") or a.PILLS[theme_key]["off"])
+        try:
+            make_byline(a.BYLINE_MASK, th)
+        except Exception as e:
+            dlog_error("byline: %s" % e)
+        try:
+            make_pill_texts(a.PILL_TEXT, th)
+        except Exception as e:
+            dlog_error("pill texts: %s" % e)
         with open(asset_path("plugin_square_frame"), "wb") as f:
             f.write(square_frame_png(120, th.get("stops") or _hex_rgb(ring_hex(th)), thickness=6))
         if view == "grid":
@@ -1375,6 +1467,7 @@ def header_xml():
         pixw("logo_glow", (34, 5, 100, 100)),
         pixw("logo_img", (34, 5, 100, 100), z=3),
         wid("credit", (686, 20, 400, 70), font=24, fg=c["muted"], valign="center", extra='noWrap="1"'),
+        pixw("credit_img", (686, 33, BYLINE_W, BYLINE_H), z=3),
         wid("h_ver", (925, 20, 160, 70), font=36, fg=ring_hex(t), halign="center", valign="center"),
         pixw("cart_img", (1100, 27, 64, 56), z=3),                       # عربة التثبيت المتعدد
         wid("cart_n", (1116, 36, 36, 26), font=22, fg=c["acc"], halign="center", valign="center", z=4),
@@ -1454,7 +1547,7 @@ class PanelBase(Screen):
         self["title"].setText(TITLE)
         self["credit"].setText(CREDIT)
         self["h_ver"].setText(u"V" + PLUGIN_VERSION)
-        for name in ("title_glow", "title_img", "logo_glow", "logo_img", "box_pic", "cart_img", "dn_img"):
+        for name in ("title_glow", "title_img", "logo_glow", "logo_img", "box_pic", "cart_img", "dn_img", "credit_img"):
             self[name] = Pixmap()
         for prefix in ("ram", "hdd"):
             self["%s_bar" % prefix] = MenuList([], content=eListboxPythonMultiContent)
@@ -1752,6 +1845,11 @@ class PanelBase(Screen):
             if logo and self["logo_img"].instance:
                 self["logo_img"].instance.setPixmap(logo)
                 self["logo_img"].instance.show()
+            by = pix("by_img")
+            if by and self["credit_img"].instance:
+                self["credit_img"].instance.setPixmap(by)
+                self["credit_img"].instance.show()
+                self["credit"].hide()
             if self.t["modern"] and self.t.get("light"):
                 frames = [pix("f%02d" % i) for i in range(12 if anim else 1)]
                 if frames and all(frames) and self["title_img"].instance:
@@ -3169,6 +3267,7 @@ class ListPanel(PanelBase):
         qpos = dict((k, i + 1) for i, k in enumerate(_ui["queue"]))
         newk = _ui["new"]
         pill = pix("pill")
+        pt_i, pt_d = pix("pt_insta_l"), pix("pt_insd_l")        # Modern: gradient words
         star = badge_pix("star_small")
         tick = badge_pix("check_small")
         rows = []
@@ -3202,10 +3301,15 @@ class ListPanel(PanelBase):
             if pill:
                 row.append(MultiContentEntryPixmapAlphaBlend(pos=(s(574), s(28)), size=(s(180), s(44)),
                                                              png=pill, flags=BT_SCALE))
-            row.append(MultiContentEntryText(pos=(s(574), s(28)), size=(s(180), s(44)), font=2,
-                                             flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
-                                             text="INSTALLED" if done else "INSTALL",
-                                             color=acc, color_sel=acc))
+            ptx = pt_d if done else pt_i
+            if ptx:
+                row.append(MultiContentEntryPixmapAlphaBlend(pos=(s(574), s(28)), size=(s(180), s(44)),
+                                                             png=ptx, flags=BT_SCALE))
+            else:
+                row.append(MultiContentEntryText(pos=(s(574), s(28)), size=(s(180), s(44)), font=2,
+                                                 flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER,
+                                                 text="INSTALLED" if done else "INSTALL",
+                                                 color=acc, color_sel=acc))
             rows.append(row)
         self["items"].setList(rows)
         if rows:
@@ -3309,11 +3413,11 @@ class GridPanel(PanelBase):
             wid("g_cap", (40, 135, 700, 34), font=24, fg=c["oacc"], bg=c["bg"]),
             wid("g_tags", (740, 135, 260, 34), font=22, fg=c["owarn"], bg=c["bg"], halign="right"),
             wid("g_sec", (40, 170, 960, 76), font=56, fg=c["ohi"], bg=c["bg"], valign="center"),
-            wid("g_name", (40, 252, 840, 46), font=36, fg=c["otext"], bg=c["bg"], valign="center"),
-            pixw("g_plugin_img", (900, 245, 100, 100), z=4),
-            pixw("g_plugin_frame", (890, 235, 120, 120), z=3),
-            wid("g_author", (40, 298, 840, 34), font=26, fg=c["osecond"], bg=c["bg"]),
-            wid("g_desc", (40, 336, 840, 96), font=30, fg=c["otext"], bg=c["bg"], halign="right", valign="top"),
+            wid("g_name", (40, 252, 410, 46), font=36, fg=c["otext"], bg=c["bg"], valign="center"),
+            pixw("g_plugin_img", (470, 252, 100, 100), z=4),            # مركز عمود التفاصيل ، فوق الشرح
+            pixw("g_plugin_frame", (460, 242, 120, 120), z=3),
+            wid("g_author", (40, 298, 410, 34), font=26, fg=c["osecond"], bg=c["bg"]),
+            wid("g_desc", (40, 368, 960, 76), font=30, fg=c["otext"], bg=c["bg"], halign="right", valign="top"),
             # --- بطاقة الأرقام ---
             box((40, 446, 960, 74), c["card"], 18),
         ]
@@ -3328,6 +3432,7 @@ class GridPanel(PanelBase):
             pixw("emb_bg", (1022, 142, 256, 256), z=1),
             pixw("emb_ic", (1102, 222, 96, 96), z=3),
             pixw("g_pill", (1035, 438, 230, 52), z=3),
+            pixw("g_pilltxt_img", (1035, 438, 230, 52), z=4),
             wid("g_pilltxt", (1035, 438, 230, 52), font=28, fg=c["text"], halign="center", valign="center", z=4),
             # --- معلومات الجهاز ---
             box((1310, 125, 570, 395), c["card"], 24),
@@ -3367,6 +3472,7 @@ class GridPanel(PanelBase):
         self["emb_bg"] = Pixmap()
         self["g_pill"] = Pixmap()
         self["g_pilltxt"] = Label("")
+        self["g_pilltxt_img"] = Pixmap()
         self["emb_ic"] = Pixmap()
         for i in range(GRID_PER):
             self["tb%d" % i] = Pixmap()
@@ -3548,17 +3654,26 @@ class GridPanel(PanelBase):
         try:
             done = bool(it) and installed_checker()(it)
             inst = self["g_pill"].instance
-            pm = pix("pill")
+            pm = pix("pill_g") or pix("pill")
             if it and pm and inst:
                 inst.setPixmap(pm)
                 inst.show()
             elif inst:
                 inst.hide()
-            if it:
-                self["g_pilltxt"].setText("INSTALLED" if done else "INSTALL")
-                setColor(self["g_pilltxt"], ring_hex(self.t))
-            else:
+            timg = self["g_pilltxt_img"].instance
+            ptx = pix("pt_insd_g" if done else "pt_insta_g") if it else None
+            if it and ptx and timg:                      # Modern: gradient word
+                timg.setPixmap(ptx)
+                timg.show()
                 self["g_pilltxt"].setText("")
+            else:
+                if timg:
+                    timg.hide()
+                if it:
+                    self["g_pilltxt"].setText("INSTALLED" if done else "INSTALL")
+                    setColor(self["g_pilltxt"], pill_text_color(self.t))
+                else:
+                    self["g_pilltxt"].setText("")
         except Exception as e:
             dlog_error("showBadge: %s" % e)
 
