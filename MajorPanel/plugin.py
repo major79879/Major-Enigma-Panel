@@ -1185,7 +1185,8 @@ def prep_assets(theme_key, anim, splash=False, view="list"):
         except Exception as e:
             dlog_error("pill texts: %s" % e)
         with open(asset_path("plugin_square_frame"), "wb") as f:
-            f.write(square_frame_png(120, th.get("stops") or _hex_rgb(ring_hex(th)), thickness=6))
+            f.write(square_frame_png(160 if view == "grid" else 120, th.get("stops") or _hex_rgb(ring_hex(th)),
+                                     thickness=8 if view == "grid" else 6))
         if view == "grid":
             _put("emblem", a.EMBLEM[theme_key])
         ok = True
@@ -3413,10 +3414,10 @@ class GridPanel(PanelBase):
             wid("g_cap", (40, 135, 700, 34), font=24, fg=c["oacc"], bg=c["bg"]),
             wid("g_tags", (740, 135, 260, 34), font=22, fg=c["owarn"], bg=c["bg"], halign="right"),
             wid("g_sec", (40, 170, 960, 76), font=56, fg=c["ohi"], bg=c["bg"], valign="center"),
-            wid("g_name", (40, 252, 410, 46), font=36, fg=c["otext"], bg=c["bg"], valign="center"),
-            pixw("g_plugin_img", (470, 252, 100, 100), z=4),            # مركز عمود التفاصيل ، فوق الشرح
-            pixw("g_plugin_frame", (460, 242, 120, 120), z=3),
-            wid("g_author", (40, 298, 410, 34), font=26, fg=c["osecond"], bg=c["bg"]),
+            wid("g_name", (40, 252, 580, 46), font=36, fg=c["otext"], bg=c["bg"], valign="center"),
+            pixw("g_plugin_img", (643, 168, 134, 134), z=4),            # وسط المساحة الفارغة فوق الشرح (أكبر)
+            pixw("g_plugin_frame", (630, 155, 160, 160), z=3),
+            wid("g_author", (40, 298, 580, 34), font=26, fg=c["osecond"], bg=c["bg"]),
             wid("g_desc", (40, 368, 960, 76), font=30, fg=c["otext"], bg=c["bg"], halign="right", valign="top"),
             # --- بطاقة الأرقام ---
             box((40, 446, 960, 74), c["card"], 18),
