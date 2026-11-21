@@ -1135,10 +1135,47 @@ def get_icon(cat_name, size=48):
 BAR_SEGS = 30
 
 
-def wid(name, r, font=None, fg=None, bg=None, halign=None, valign=None, z=2, extra="", transparent=True):
+BOLD_FONT = None
+BOLD_PATHS = (os.path.join(PLUGIN_DIR, "fonts", "Bold.ttf"),
+              os.path.join(PLUGIN_DIR, "fonts", "DejaVuSans-Bold.ttf"),
+              "/usr/share/fonts/nmsbd.ttf",
+              "/usr/share/fonts/NotoSans-Bold.ttf",
+              "/usr/share/fonts/LiberationSans-Bold.ttf",
+              "/usr/share/fonts/DejaVuSans-Bold.ttf",
+              "/usr/share/fonts/ttf-dejavu/DejaVuSans-Bold.ttf",
+              "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+              "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf")
+
+
+def register_bold_font():
+    """Registers a Bold font once (used for the panel name in the header). Falls back to 'Regular' if none is found."""
+    global BOLD_FONT
+    if BOLD_FONT is not None:
+        return BOLD_FONT
+    BOLD_FONT = "Regular"
+    try:
+        from enigma import addFont
+    except Exception:
+        return BOLD_FONT
+    for path in BOLD_PATHS:
+        if not os.path.isfile(path):
+            continue
+        try:
+            try:
+                addFont(path, "MajorBold", 100, False, 0)
+            except TypeError:
+                addFont(path, "MajorBold", 100, False)
+            BOLD_FONT = "MajorBold"
+            break
+        except Exception as e:
+            dlog("bold font failed (%s): %s" % (path, e))
+    return BOLD_FONT
+
+
+def wid(name, r, font=None, fg=None, bg=None, halign=None, valign=None, z=2, extra="", transparent=True, face="Regular"):
     a = ['<widget name="%s" %s' % (name, rect(*r))]
     if font:
-        a.append('font="Regular;%d"' % s(font))
+        a.append('font="%s;%d"' % (face, s(font)))
     if fg:
         a.append('foregroundColor="%s"' % fg)
     a.append('backgroundColor="%s"' % (bg or T()["card"]))
@@ -1307,7 +1344,8 @@ def header_xml():
     out = [
         box((0, 0, 1920, 110), c["card"]),
         '<eLabel position="0,%d" size="%d,%d" backgroundColor="%s" zPosition="1"/>' % (s(106), _W, max(2, s(4)), c["hdr"]),
-        wid("title", (156, 20, 520, 70), font=46, fg=(c["acc"] if t["modern"] else c["hi"]), valign="center"),
+        wid("title", (156, 20, 520, 70), font=46, fg=(c["acc"] if t["modern"] else ring_hex(t)), valign="center",
+            face=register_bold_font()),
         pixw("title_glow", (146, 13, 520, 84)),
         pixw("title_img", (146, 13, 520, 84), z=3),
         pixw("logo_glow", (34, 5, 100, 100)),
@@ -3564,8 +3602,24 @@ class GridPanel(PanelBase):
 SETTINGS_ROWS = ("view", "style", "color", "anim", "splash", "autoupdate", "notifications", "mainmenu", "update")
 
 
+def settings_sel_attr(w, h):
+    """Rounded selection bar for the Settings rows (any theme, any resolution). Returns '' on failure."""
+    t = T()
+    try:
+        p = asset_path("sel_settings_%s" % _state["theme"])
+        if not os.path.isfile(p):
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            make_rounded_sel(p, s(w), s(h), t["card"], t["sel"], inset=max(2, s(5)), radius=max(6, s(16)),
+                             light=t.get("light", False))
+        return ' selectionPixmap="%s"' % p
+    except Exception as e:
+        dlog_error("settings selection: %s" % e)
+        return ""
+
+
 def settings_skin():
     c = tc()
+    sa = settings_sel_attr(1140, 64)
     parts = [
         '<screen name="MajorPanelSettings" position="0,0" size="%d,%d" flags="wfNoBorder" backgroundColor="%s">' % (_W, _H, c["bg"]),
         box((0, 0, 1920, 110), c["card"]),
@@ -3573,12 +3627,14 @@ def settings_skin():
         wid("s_title", (60, 20, 1000, 70), font=46, fg=c["hi"], valign="center"),
         box((360, 135, 1200, 885), c["card"], 24),
         '<widget name="rows" %s backgroundColor="%s" backgroundColorSelected="%s" foregroundColor="%s" '
-        'foregroundColorSelected="#FFFFFF" scrollbarMode="showNever" transparent="0" zPosition="2"/>' % (
-            rect(390, 175, 1140, 580), c["card"], c["sel"], c["text"]),
+        'foregroundColorSelected="#FFFFFF" scrollbarMode="showNever"%s transparent="0" zPosition="2"/>' % (
+            rect(390, 175, 1140, 580), c["card"], c["card"] if sa else c["sel"], c["text"], sa),
         wid("s_prev", (390, 760, 1140, 40), font=26, fg=c["acc"], valign="center"),
     ]
-    parts.append('<widget name="swatches" %s backgroundColor="%s" backgroundColorSelected="%s" scrollbarMode="showNever" '
-                 'transparent="1" zPosition="2"/>' % (rect(390, 805, 1140, 65), c["card"], c["card"]))
+    for i in range(5):                                           # rounded color blocks (recolored in drawSwatches)
+        parts.append('<widget name="sw%d" %s backgroundColor="%s" cornerRadius="%d" borderWidth="%d" borderColor="%s" '
+                     'transparent="0" zPosition="2"/>' % (i, rect(400 + i * 220, 807, 190, 60), c["card2"], s(14),
+                                                          max(1, s(2)), c["line"]))
     parts += [
         wid("s_note", (390, 875, 1140, 75), font=16, fg=c["muted"], valign="center"),
         '<widget name="key_red" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
@@ -3615,9 +3671,8 @@ class SettingsScreen(Screen):
         self["rows"].l.setFont(0, gFont("Regular", s(34)))
         self["rows"].l.setItemHeight(s(64))
         self["s_prev"] = Label("")
-        self["swatches"] = MenuList([], content=eListboxPythonMultiContent)
-        self["swatches"].l.setFont(0, gFont("Regular", s(20)))
-        self["swatches"].l.setItemHeight(s(65))
+        for i in range(5):
+            self["sw%d" % i] = Label("")
         self["s_note"] = Label(u"Animation: uses more CPU/RAM. التحريك يستهلك موارد أكثر.\n"
                                u"Notifications: checks every 6 hours. الإشعارات تفحص كل 6 ساعات.\n"
                                u"Auto Update: checks at startup. Main Menu: show/hide. Save: apply.")
@@ -3666,18 +3721,19 @@ class SettingsScreen(Screen):
         self.drawSwatches(th)
 
     def drawSwatches(self, th):
-        """Five color blocks of the theme being chosen, drawn by a list (colored text cells) so they always repaint."""
-        cells = [None]
+        """Five rounded color blocks of the theme being chosen (Labels with cornerRadius, recolored on the fly)."""
         for i, key in enumerate(("bg", "card2", "accent", "second", "sel")):
-            col = hexint(th[key])
-            kw = dict(pos=(s(10 + i * 220), s(2)), size=(s(190), s(60)), font=0,
-                      flags=RT_HALIGN_CENTER | RT_VALIGN_CENTER, text="", color=col, color_sel=col,
-                      backcolor=col, backcolor_sel=col)
             try:
-                cells.append(MultiContentEntryText(border_width=max(1, s(2)), border_color=hexint(th["line"]), **kw))
-            except TypeError:
-                cells.append(MultiContentEntryText(**kw))
-        self["swatches"].setList([cells])
+                w = self["sw%d" % i]
+                if w.instance:
+                    w.instance.setBackgroundColor(parseColor(th[key]))
+                    try:
+                        w.instance.setBorderColor(parseColor(th["line"]))
+                    except Exception:
+                        pass
+                    w.instance.invalidate()
+            except Exception as e:
+                dlog_error("swatch %d: %s" % (i, e))
 
     def current(self):
         return SETTINGS_ROWS[self["rows"].getSelectionIndex()]
