@@ -107,11 +107,11 @@ def validate_plugin_png(data):
     return data
 
 
-def square_frame_png(size, colors, thickness=5):
-    """Return a transparent PNG with a solid or horizontal-gradient square border."""
-    if not isinstance(size, int) or size < 8:
+def frame_png(width, height, colors, thickness=5):
+    """Return a transparent PNG with a solid or horizontal-gradient rectangular border."""
+    if not isinstance(width, int) or not isinstance(height, int) or width < 8 or height < 8:
         raise ValueError("square frame size must be an integer of at least 8")
-    if not isinstance(thickness, int) or thickness < 1 or thickness >= size // 2:
+    if not isinstance(thickness, int) or thickness < 1 or thickness >= min(width, height) // 2:
         raise ValueError("square frame thickness is out of range")
 
     if (isinstance(colors, (tuple, list)) and len(colors) == 3
@@ -140,11 +140,11 @@ def square_frame_png(size, colors, thickness=5):
         return tuple(int(a + (b - a) * fraction + 0.5) for a, b in zip(start, end))
 
     rows = []
-    for y in range(size):
+    for y in range(height):
         row = bytearray(b"\x00")
-        for x in range(size):
-            inside_border = x < thickness or y < thickness or x >= size - thickness or y >= size - thickness
-            row.extend(color_at(x / float(size - 1)))
+        for x in range(width):
+            inside_border = x < thickness or y < thickness or x >= width - thickness or y >= height - thickness
+            row.extend(color_at(x / float(width - 1)))
             row.append(255 if inside_border else 0)
         rows.append(row)
 
@@ -153,7 +153,14 @@ def square_frame_png(size, colors, thickness=5):
         return struct.pack(">I", len(payload)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
 
     image = (b"\x89PNG\r\n\x1a\n"
-             + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+             + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
              + chunk(b"IDAT", zlib.compress(b"".join(rows), 6))
              + chunk(b"IEND", b""))
     return image
+
+
+def square_frame_png(size, colors, thickness=5):
+    """Return a transparent PNG with a solid or horizontal-gradient square border."""
+    if not isinstance(size, int) or size < 8:
+        raise ValueError("square frame size must be an integer of at least 8")
+    return frame_png(size, size, colors, thickness)
