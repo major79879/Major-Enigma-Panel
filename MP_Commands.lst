@@ -59,8 +59,11 @@ wget -q -O - https://raw.githubusercontent.com/OliOli2013/PanelAIO-Plugin/main/i
 ## === # Online 4 Tech - Ahmed Romeh # = # لوحة شاملة تجمع عشرات الأدوات والإضافات والخدمات # === ##
 wget -O /tmp/online4tech.sh https://online4tech.github.io/online4Tech/install.sh && chmod +x /tmp/online4tech.sh && /tmp/online4tech.sh
 
-## === # Mohamed Store - Mahamed Iraqy # = # لوحة شاملة تجمع عشرات الأدوات والإضافات والخدمات # === ##
+## === # Mohamed Store - Mohamed Iraqy # = # لوحة شاملة تجمع عشرات الأدوات والإضافات والخدمات # === ##
 wget -O - https://raw.githubusercontent.com/wwwgoper77-wq/MohamedStore/main/install.sh | sh
+
+## === # Sky Blue Store - Mohamed Al Fatlawy # = #  لوحة شاملة تجمع عشرات الأدوات والإضافات والخدمات وبها أداة تشغيل فيدات 4.2.2 # === ##
+wget -O /tmp/install-skybluestore.sh https://updates.skyblue1.us/e2/install-skybluestore.sh && /bin/sh /tmp/install-skybluestore.sh
 
 ## ============================== +++ Tools +++ ============================== ##
 
