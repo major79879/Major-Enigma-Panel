@@ -46,7 +46,7 @@ from twisted.internet.threads import deferToThread
 
 from .lstparser import parse_commands
 from .plugin_features import (MAX_PLUGIN_IMAGE_BYTES, added_plugin_keys,
-                              circle_frame_png, is_newer_version, normalize_plugin_image_map,
+                              square_frame_png, is_newer_version, normalize_plugin_image_map,
                               plugin_key, plugin_names_by_key, validate_plugin_png)
 
 try:
@@ -1070,8 +1070,8 @@ def prep_assets(theme_key, anim, splash=False, view="list"):
         _put("pill", a.PILLS[theme_key]["off"])
         if view == "grid":
             _put("emblem", a.EMBLEM[theme_key])
-            with open(asset_path("plugin_ring"), "wb") as f:
-                f.write(circle_frame_png(80, _hex_rgb(ring_hex(th))))
+            with open(asset_path("plugin_square_frame"), "wb") as f:
+                f.write(square_frame_png(120, _hex_rgb(ring_hex(th)), thickness=6))
         ok = True
     except Exception as e:
         dlog_error("prep_assets failed: %s" % e)
@@ -3235,10 +3235,10 @@ class GridPanel(PanelBase):
             wid("g_tags", (740, 135, 260, 34), font=22, fg=c["warn"], bg=c["bg"], halign="right"),
             wid("g_sec", (40, 170, 960, 76), font=56, fg=c["hi"], bg=c["bg"], valign="center"),
             wid("g_name", (40, 252, 840, 46), font=36, fg=c["text"], bg=c["bg"], valign="center"),
-            wid("g_author", (40, 296, 840, 30), font=26, fg=c["second"], bg=c["bg"]),
-            pixw("g_plugin_ring", (420, 324, 80, 80), z=3),
-            pixw("g_plugin_img", (436, 340, 48, 48), z=4),
-            wid("g_desc", (40, 408, 840, 36), font=24, fg=c["text"], bg=c["bg"], halign="right", valign="top"),
+            pixw("g_plugin_img", (900, 245, 100, 100), z=4),
+            pixw("g_plugin_frame", (890, 235, 120, 120), z=3),
+            wid("g_author", (40, 298, 840, 34), font=26, fg=c["second"], bg=c["bg"]),
+            wid("g_desc", (40, 336, 840, 96), font=30, fg=c["text"], bg=c["bg"], halign="right", valign="top"),
             # --- بطاقة الأرقام ---
             box((40, 446, 960, 74), c["card"], 18),
         ]
@@ -3299,8 +3299,8 @@ class GridPanel(PanelBase):
             self["tt%d" % i] = Label("")
         self["tsel"] = Pixmap()
         self.pluginImageWidget = "g_plugin_img"
-        self.pluginImageFrameWidget = "g_plugin_ring"
-        self["g_plugin_ring"] = Pixmap()
+        self.pluginImageFrameWidget = "g_plugin_frame"
+        self["g_plugin_frame"] = Pixmap()
         self["g_plugin_img"] = Pixmap()
         for name in ("cats", "items"):                      # نفس نوع قوائم وضع List
             self[name] = MenuList([], enableWrapAround=True, content=eListboxPythonMultiContent)
@@ -3328,10 +3328,10 @@ class GridPanel(PanelBase):
             if emb and self["emb_bg"].instance:
                 self["emb_bg"].instance.setPixmap(emb)
                 self["emb_bg"].instance.show()
-            frame = pix("plugin_ring")
-            if frame and self["g_plugin_ring"].instance:
-                self["g_plugin_ring"].instance.setPixmap(frame)
-                self["g_plugin_ring"].instance.hide()
+            frame = pix("plugin_square_frame")
+            if frame and self["g_plugin_frame"].instance:
+                self["g_plugin_frame"].instance.setPixmap(frame)
+                self["g_plugin_frame"].instance.hide()
         except Exception:
             pass
         PanelBase.start(self)
