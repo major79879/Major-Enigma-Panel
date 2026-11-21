@@ -107,22 +107,44 @@ def validate_plugin_png(data):
     return data
 
 
-def square_frame_png(size, color, thickness=5):
-    """Return a transparent PNG containing a colored square border."""
+def square_frame_png(size, colors, thickness=5):
+    """Return a transparent PNG with a solid or horizontal-gradient square border."""
     if not isinstance(size, int) or size < 8:
-        raise ValueError("circle frame size must be an integer of at least 8")
-    if (not isinstance(color, (tuple, list)) or len(color) != 3
-            or any(not isinstance(channel, int) or not 0 <= channel <= 255 for channel in color)):
-        raise ValueError("circle frame color must contain three RGB channels")
+        raise ValueError("square frame size must be an integer of at least 8")
     if not isinstance(thickness, int) or thickness < 1 or thickness >= size // 2:
         raise ValueError("square frame thickness is out of range")
+
+    if (isinstance(colors, (tuple, list)) and len(colors) == 3
+            and all(isinstance(channel, int) for channel in colors)):
+        palette = [tuple(colors)]
+    else:
+        try:
+            palette = [tuple(color) for color in colors]
+        except (TypeError, ValueError):
+            raise ValueError("square frame colors must be RGB colors")
+        if not palette or any(len(color) != 3 or
+                              any(not isinstance(channel, int) or not 0 <= channel <= 255
+                                  for channel in color)
+                              for color in palette):
+            raise ValueError("square frame colors must contain RGB channels")
+
+    def color_at(position):
+        if len(palette) == 1:
+            return palette[0]
+        scaled = min(1.0, max(0.0, position)) * (len(palette) - 1)
+        index = int(scaled)
+        if index == len(palette) - 1:
+            return palette[index]
+        fraction = scaled - index
+        start, end = palette[index], palette[index + 1]
+        return tuple(int(a + (b - a) * fraction + 0.5) for a, b in zip(start, end))
 
     rows = []
     for y in range(size):
         row = bytearray(b"\x00")
         for x in range(size):
             inside_border = x < thickness or y < thickness or x >= size - thickness or y >= size - thickness
-            row.extend(color)
+            row.extend(color_at(x / float(size - 1)))
             row.append(255 if inside_border else 0)
         rows.append(row)
 
