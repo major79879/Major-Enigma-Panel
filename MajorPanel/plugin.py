@@ -525,6 +525,27 @@ THEMES = {
         stops=((65, 242, 58), (90, 230, 149), (58, 129, 214), (73, 60, 255), (182, 110, 255)),
         title_set="green", sel_key="matrix_green",
         fill=((6, 32, 11), (4, 10, 28)), border=(65, 242, 58), **_BTN, **_OKS),
+    # ---- Mandarin Cream: بطاقات كريمي مطفي + خلفية أزرق داكن + تحديد برتقالي Mandarin ----
+    "mandarin_cream": dict(
+        name="Mandarin Cream", modern=False, light=True,
+        bg="#0F2447", card="#EFE9D8", card2="#E5DDC8", line="#C8BEA3", text="#15294A", muted="#5E6A7E",
+        accent="#C96800", second="#1F4E8F", sel="#F28A12", hdr="#F28A12", term="#0B1A33",
+        red="#C9444F", green="#2C8F66", yellow="#B5780F", blue="#2F6FC0",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#10244A", selfg="#10244A", selsub="#3A2A10",
+        stops=None, title_set=None, sel_key=None, border=(214, 108, 0),
+        onbg=dict(hi="#F6EFE0", text="#E9E2D0", muted="#A9B8D0", acc="#FFA83A", second="#9CC3FF", warn="#FFC266")),
+    "mandarin_cream_m": dict(
+        name="Mandarin Cream", modern=True, light=True,
+        bg="#0F2447", card="#EFE9D8", card2="#E5DDC8", line="#C8BEA3", text="#15294A", muted="#5E6A7E",
+        accent="#C96800", second="#1F4E8F", sel="#F4C27F", hdr="#E27800", term="#0B1A33",
+        red="#C9444F", green="#2C8F66", yellow="#B5780F", blue="#2F6FC0",
+        ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
+        hi="#10244A", selfg="#10244A", selsub="#6B3A00",
+        stops=((214, 108, 0), (236, 150, 30), (214, 90, 60), (48, 96, 176), (20, 52, 112)),
+        title_set=None, sel_key="mandarin_cream_m",
+        fill=((252, 232, 200), (244, 200, 140)), border=(214, 108, 0),
+        onbg=dict(hi="#F6EFE0", text="#E9E2D0", muted="#A9B8D0", acc="#FFA83A", second="#9CC3FF", warn="#FFC266")),
 }
 for _th in THEMES.values():                  # حقول اللون الإضافية (الثيمات الفاتحة تغيّرها)
     _th.setdefault("light", False)
@@ -535,11 +556,11 @@ MODERN_ORDER = ["blue_fire", "twilight", "ember_night", "ocean_sun", "aurora", "
                 "sakura", "glacier", "crimson_gold", "violet_storm", "cyber_lime",
                 "neon_blue", "orange", "yellow", "green", "purple", "red", "aqua",
                 "soft_sky", "mint_breeze", "warm_sand", "lavender", "rose_petal", "aqua_pearl", "peach_cream", "cloud_grey",
-                "midnight_neon", "amoled_orchid", "dark_ruby", "matrix_green"]
+                "midnight_neon", "amoled_orchid", "dark_ruby", "matrix_green", "mandarin_cream_m"]
 CLASSIC_ORDER = ["classic", "graphite", "midnight_indigo", "forest", "warm_slate", "rose_dusk",
                  "slate_calm", "sage_stone", "mocha_cream", "plum_mist", "sea_glass", "terracotta",
                  "amber_steel", "olive_cream", "navy_canary", "forest_orange", "paper_white", "sage_light", "cream_latte", "powder_blue", "lilac_grey",
-                 "pitch_black", "midnight_ink", "deep_teal", "espresso"]
+                 "pitch_black", "midnight_ink", "deep_teal", "espresso", "mandarin_cream"]
 
 _state = dict(DEFAULT_SETTINGS)
 
@@ -611,11 +632,14 @@ def T():
 
 def tc():
     t = T()
+    ob = t.get("onbg") or {}                      # ألوان النص المرسوم مباشرة فوق الخلفية (خارج البطاقات)
     return dict(bg=t["bg"], card=t["card"], card2=t["card2"], line=t["line"], text=t["text"], muted=t["muted"],
                 acc=t["accent"], second=t["second"], sel=t["sel"], hdr=t["hdr"], term=t["term"],
                 red=t["red"], green=t["green"], yellow=t["yellow"], blue=t["blue"],
                 ok=t["ok"], bad=t["bad"], warn=t["warn"],
-                hi=t["hi"], selfg=t["selfg"], selsub=t["selsub"], light=t["light"])
+                hi=t["hi"], selfg=t["selfg"], selsub=t["selsub"], light=t["light"],
+                ohi=ob.get("hi", t["hi"]), otext=ob.get("text", t["text"]), omuted=ob.get("muted", t["muted"]),
+                oacc=ob.get("acc", t["accent"]), osecond=ob.get("second", t["second"]), owarn=ob.get("warn", t["warn"]))
 
 
 def selfg():
@@ -1370,7 +1394,7 @@ def buttons_xml(hint_extra=""):
         out.append('<widget name="%s" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" '
                    'cornerRadius="%d" halign="center" valign="center" zPosition="2"/>' % (
                        name, rect(x, 955, w, 66), s(30), col, s(16)))
-    out.append(wid("hint", (40, 1030, 1840, 40), font=22, fg=c["muted"], bg=c["bg"], halign="center", valign="center"))
+    out.append(wid("hint", (40, 1030, 1840, 40), font=22, fg=c["omuted"], bg=c["bg"], halign="center", valign="center"))
     return "\n".join(out)
 
 
@@ -1838,7 +1862,7 @@ class PanelBase(Screen):
             setColor(self["hint"], self.t["bad"])
         else:
             self["hint"].setText(self.hintText())
-            setColor(self["hint"], self.t["muted"])
+            setColor(self["hint"], (self.t.get("onbg") or {}).get("muted", self.t["muted"]))
 
     def setData(self, text):
         try:
@@ -1945,7 +1969,7 @@ class PanelBase(Screen):
                 pass
 
     def setBar(self, prefix, pct):
-        """Neon LED bar: the first N gradient segments are lit (more colors appear as it fills).
+        """Neon LED bar: the lit segments always show the full theme gradient (start -> end colour).
         In the Classic theme all lit segments take one color that follows the usage level.
         Drawn by ONE list widget per bar (no per-segment widgets)."""
         pixs = self.segPix
@@ -1961,7 +1985,12 @@ class PanelBase(Screen):
         row = [prefix]
         for i in range(BAR_SEGS):
             if i < on:
-                ptr = pixs["on"][i if level < 0 else level]
+                if level < 0:                       # Modern: the lit part spans the WHOLE theme gradient
+                    n_on = len(pixs["on"])
+                    gi = int(round(i * (n_on - 1) / float(max(1, on - 1)))) if on > 1 else 0
+                    ptr = pixs["on"][min(n_on - 1, gi)]
+                else:
+                    ptr = pixs["on"][level]
             else:
                 ptr = pixs["off"]
             if ptr:
@@ -2120,7 +2149,7 @@ class PanelBase(Screen):
         if self.closing:
             return
         self["hint"].setText(text)
-        setColor(self["hint"], color or self.t["accent"])
+        setColor(self["hint"], color or (self.t.get("onbg") or {}).get("acc", self.t["accent"]))
         self.flashTimer.start(2600, True)
 
     def restoreHint(self):
@@ -3277,14 +3306,14 @@ class GridPanel(PanelBase):
             '<screen name="MajorPanelGrid" position="0,0" size="%d,%d" flags="wfNoBorder" backgroundColor="%s">' % (_W, _H, c["bg"]),
             header_xml(),
             # --- منطقة العنوان والتفاصيل ---
-            wid("g_cap", (40, 135, 700, 34), font=24, fg=c["acc"], bg=c["bg"]),
-            wid("g_tags", (740, 135, 260, 34), font=22, fg=c["warn"], bg=c["bg"], halign="right"),
-            wid("g_sec", (40, 170, 960, 76), font=56, fg=c["hi"], bg=c["bg"], valign="center"),
-            wid("g_name", (40, 252, 840, 46), font=36, fg=c["text"], bg=c["bg"], valign="center"),
+            wid("g_cap", (40, 135, 700, 34), font=24, fg=c["oacc"], bg=c["bg"]),
+            wid("g_tags", (740, 135, 260, 34), font=22, fg=c["owarn"], bg=c["bg"], halign="right"),
+            wid("g_sec", (40, 170, 960, 76), font=56, fg=c["ohi"], bg=c["bg"], valign="center"),
+            wid("g_name", (40, 252, 840, 46), font=36, fg=c["otext"], bg=c["bg"], valign="center"),
             pixw("g_plugin_img", (900, 245, 100, 100), z=4),
             pixw("g_plugin_frame", (890, 235, 120, 120), z=3),
-            wid("g_author", (40, 298, 840, 34), font=26, fg=c["second"], bg=c["bg"]),
-            wid("g_desc", (40, 336, 840, 96), font=30, fg=c["text"], bg=c["bg"], halign="right", valign="top"),
+            wid("g_author", (40, 298, 840, 34), font=26, fg=c["osecond"], bg=c["bg"]),
+            wid("g_desc", (40, 336, 840, 96), font=30, fg=c["otext"], bg=c["bg"], halign="right", valign="top"),
             # --- بطاقة الأرقام ---
             box((40, 446, 960, 74), c["card"], 18),
         ]
@@ -3305,7 +3334,7 @@ class GridPanel(PanelBase):
             device_xml(self.DEV),
             # --- كل البلاطات في قائمة واحدة ---
             ] + self.tileWidgets() + [
-            wid("g_page", (40, 912, 800, 34), font=22, fg=c["muted"], bg=c["bg"]),
+            wid("g_page", (40, 912, 800, 34), font=22, fg=c["omuted"], bg=c["bg"]),
             buttons_xml(),
             '</screen>',
         ]
@@ -3641,7 +3670,7 @@ def settings_skin():
         'halign="center" valign="center" zPosition="2"/>' % (rect(500, 955, 440, 66), s(30), c["red"], s(16)),
         '<widget name="key_green" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
         'halign="center" valign="center" zPosition="2"/>' % (rect(980, 955, 440, 66), s(30), c["green"], s(16)),
-        wid("hint", (40, 1030, 1840, 40), font=22, fg=c["muted"], bg=c["bg"], halign="center", valign="center"),
+        wid("hint", (40, 1030, 1840, 40), font=22, fg=c["omuted"], bg=c["bg"], halign="center", valign="center"),
         '</screen>',
     ]
     return "\n".join(parts)
@@ -3901,7 +3930,7 @@ def info_skin(keys):
         'halign="center" valign="center" zPosition="2"/>' % (rect(500, 955, 440, 66), s(30), c["red"], s(16)),
         '<widget name="key_green" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
         'halign="center" valign="center" zPosition="2"/>' % (rect(980, 955, 440, 66), s(30), c["green"], s(16)),
-        wid("hint", (40, 1030, 1840, 40), font=22, fg=c["muted"], bg=c["bg"], halign="center", valign="center"),
+        wid("hint", (40, 1030, 1840, 40), font=22, fg=c["omuted"], bg=c["bg"], halign="center", valign="center"),
         '</screen>',
     ]
     return "\n".join(parts)
@@ -4749,13 +4778,13 @@ def splash_skin():
         '<screen name="MajorPanelSplash" position="0,0" size="%d,%d" flags="wfNoBorder" backgroundColor="%s">' % (_W, _H, c["bg"]),
         pixw("sp_logo", (780, 150, 360, 360), z=3),
         pixw("sp_name", (700, 560, 520, 84), z=3),
-        wid("sp_text", (460, 560, 1000, 84), font=56, fg=c["hi"], bg=c["bg"], halign="center", valign="center", z=3),
-        wid("sp_by", (460, 655, 1000, 50), font=30, fg=c["muted"], bg=c["bg"], halign="center", valign="center"),
+        wid("sp_text", (460, 560, 1000, 84), font=56, fg=c["ohi"], bg=c["bg"], halign="center", valign="center", z=3),
+        wid("sp_by", (460, 655, 1000, 50), font=30, fg=c["omuted"], bg=c["bg"], halign="center", valign="center"),
         wid("sp_ver", (460, 702, 1000, 48), font=34, fg=ring_hex(T()), bg=c["bg"], halign="center", valign="center"),
         box((960 - bar_w // 2, 780, bar_w, 8), c["line"], 4, z=2),
         '<widget name="sp_bar" %s backgroundColor="%s" cornerRadius="%d" zPosition="3"/>' % (
             rect(960 - bar_w // 2, 780, 10, 8), c["acc"], s(4)),
-        wid("sp_hint", (460, 820, 1000, 40), font=22, fg=c["muted"], bg=c["bg"], halign="center", valign="center"),
+        wid("sp_hint", (460, 820, 1000, 40), font=22, fg=c["omuted"], bg=c["bg"], halign="center", valign="center"),
         '</screen>',
     ]
     return "\n".join(parts)
