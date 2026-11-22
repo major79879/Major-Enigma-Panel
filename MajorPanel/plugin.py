@@ -3316,13 +3316,41 @@ def reset_ui():
     _ui["new"].clear()
 
 
+def parse_version_text(text):
+    """Version from the first non-empty line of Version.txt. Accepts '4', '4.1', 'V4.1', '4,1' (typo), a BOM,
+    blank lines and trailing notes (e.g. '4.1  - new theme'). Returns '' when there is no usable number."""
+    text = (text or u"").lstrip(u"\ufeff").strip()
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        m = re.match(r"^[vV]?\s*([0-9]+(?:\s*[.,]\s*[0-9]+)*)(?![0-9A-Za-z])", line)
+        if m:
+            return re.sub(r"\s+", "", m.group(1)).replace(",", ".")
+        m = re.match(r"^[vV]?\s*([0-9A-Za-z._-]{1,20})\s*$", line)
+        return m.group(1) if m else ""
+    return ""
+
+
+def same_version(a, b):
+    """'4' and '4.0' are the same version; non numeric versions are compared as text."""
+    num = re.compile(r"^[0-9]+(?:\.[0-9]+)*$")
+    if num.match(a) and num.match(b):
+        pa = [int(x) for x in a.split(".")]
+        pb = [int(x) for x in b.split(".")]
+        while pa and pa[-1] == 0:
+            pa.pop()
+        while pb and pb[-1] == 0:
+            pb.pop()
+        return pa == pb
+    return a.strip().lower() == b.strip().lower()
+
+
 def fetch_remote_version(holder):
     """Worker thread: reads Version.txt from GitHub. holder gets ver (str) or error, then done=True."""
     try:
-        text = _fetch(VERSION_URL, timeout=4)
-        lines = text.strip().splitlines()
-        v = re.sub(r"^[vV]\s*", "", lines[0].strip()) if lines else ""
-        if re.match(r"^[0-9A-Za-z._-]{1,20}$", v):
+        v = parse_version_text(_fetch(VERSION_URL, timeout=4))
+        if v:
             holder["ver"] = v
         else:
             holder["error"] = "bad version file"
@@ -3363,7 +3391,7 @@ def _plugin_keys_from_commands(text):
 
 def check_background_notifications():
     """Fetch and compare small metadata files; called only by the boot-time timer."""
-    remote_version = re.sub(r"^[vV]\s*", "", _fetch(VERSION_URL, timeout=5).strip())
+    remote_version = parse_version_text(_fetch(VERSION_URL, timeout=5))
     if not re.match(r"^[0-9]+(?:\.[0-9]+)*$", remote_version):
         raise ValueError("bad remote version")
     command_text = _fetch(COMMANDS_URL, timeout=8)
@@ -3382,7 +3410,8 @@ def check_background_notifications():
         previous_version = PLUGIN_VERSION
 
     new_keys = added_plugin_keys(previous_keys, remote_keys)
-    update_available = is_newer_version(remote_version, str(previous_version))
+    update_pending = is_newer_version(remote_version, PLUGIN_VERSION)          # أحدث من النسخة المثبّتة فعلاً
+    update_available = update_pending and not same_version(remote_version, str(previous_version))   # رسالة مرة لكل إصدار
     if not _write_json(NOTIFICATION_STATE_FILE, {
             "version": remote_version,
             "plugins": sorted(remote_keys),
@@ -3398,6 +3427,7 @@ def check_background_notifications():
     return {
         "version": remote_version,
         "update": update_available,
+        "update_pending": update_pending,
         "new_plugins": [remote_names[key] for key in new_keys if remote_names.get(key)],
         "cats": cats,
     }
@@ -3453,7 +3483,7 @@ def _notification_result(result):
         return
     try:                                        # مركز الإشعارات: يُسجَّل كل جديد (حتى والبانل مفتوح)
         result["plugin_updates"] = []
-        if result.get("update"):
+        if result.get("update_pending"):
             add_notif("panel:%s" % result["version"], "panel", u"Panel update | تحديث البانل",
                       u"Major Enigma Panel V%s is available" % result["version"])
         for name in result.get("new_plugins") or []:
@@ -5602,7 +5632,7 @@ class SplashScreen(Screen):
 
     def decide(self):
         ver = self.check.get("ver")
-        if ver and ver.lower() != PLUGIN_VERSION.lower():
+        if ver and not same_version(ver, PLUGIN_VERSION):
             return ("update", ver)
         return "go"
 
