@@ -101,7 +101,7 @@ PLUGIN_IMAGE_CACHE_PATH = os.path.join(ASSET_DIR, "plugin_image.png")
 NOTIFICATION_INTERVAL_MS = 6 * 60 * 60 * 1000
 NEW_CAT = "New"                                              # اسم قائمة الإضافات الجديدة (تظهر أسفل All)
 DEFAULT_SETTINGS = {"view": "list", "theme": "blue_fire", "anim": False, "mainmenu": True, "splash": True,
-                    "autoupdate": True, "notifications": True, "updatecheck": True, "backupdir": ""}
+                    "autoupdate": True, "notifications": True, "updatecheck": True, "backupdir": "", "updatealert": True}
 # ============================================================================
 
 # ---- مصدر واحد لتعريف الثيمات (يُستخدم في plugin.py وفي توليد الصور) ----
@@ -593,13 +593,16 @@ def load_settings():
     _state["autoupdate"] = bool(data.get("autoupdate", DEFAULT_SETTINGS["autoupdate"]))
     _state["notifications"] = bool(data.get("notifications", DEFAULT_SETTINGS["notifications"]))
     _state["updatecheck"] = bool(data.get("updatecheck", DEFAULT_SETTINGS["updatecheck"]))
+    _state["updatealert"] = bool(data.get("updatealert", DEFAULT_SETTINGS["updatealert"]))
     bdir = data.get("backupdir", "")
     _state["backupdir"] = bdir if isinstance(bdir, str) and bdir.startswith("/") else ""
     return _state
 
 
 def save_settings(theme, anim=False, mainmenu=True, splash=True, view="list", autoupdate=True, notifications=True,
-                  updatecheck=None, backupdir=None):
+                  updatecheck=None, backupdir=None, updatealert=None):
+    if updatealert is None:
+        updatealert = _state.get("updatealert", True)
     if updatecheck is None:
         updatecheck = _state.get("updatecheck", True)
     if backupdir is None:
@@ -608,7 +611,9 @@ def save_settings(theme, anim=False, mainmenu=True, splash=True, view="list", au
         with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump({"view": view, "theme": theme, "anim": bool(anim), "mainmenu": bool(mainmenu), "splash": bool(splash),
                        "autoupdate": bool(autoupdate), "notifications": bool(notifications),
-                       "updatecheck": bool(updatecheck), "backupdir": backupdir or ""}, f)
+                       "updatecheck": bool(updatecheck), "backupdir": backupdir or "",
+                       "updatealert": bool(updatealert)}, f)
+        _state["updatealert"] = bool(updatealert)
         _state["notifications"] = bool(notifications)
         _state["updatecheck"] = bool(updatecheck)
         _state["backupdir"] = backupdir or ""
@@ -1488,7 +1493,10 @@ def header_xml():
         wid("h_ver", (925, 20, 160, 70), font=36, fg=ring_hex(t), halign="center", valign="center"),
         pixw("cart_img", (1100, 27, 64, 56), z=3),                       # عربة التثبيت المتعدد
         wid("cart_n", (1116, 36, 36, 26), font=22, fg=c["acc"], halign="center", valign="center", z=4),
-        wid("h_server", (1190, 20, 360, 70), font=28, fg=c["warn"], halign="left", valign="center", extra='noWrap="1"'),
+        wid("h_server", (1190, 20, 330, 70), font=28, fg=c["warn"], halign="left", valign="center", extra='noWrap="1"'),
+        pixw("bell_img", (1534, 27, 64, 56), z=3),                       # مركز الإشعارات
+        wid("bell_n", (1580, 18, 34, 30), font=20, fg="#FFFFFF", bg="#E5384F", halign="center", valign="center", z=4,
+            transparent=False, extra='cornerRadius="%d"' % s(15)),
         pixw("dn_img", (1628, 8, 56, 56), z=3),                          # شمس نهاراً / هلال ليلاً
         wid("clock", (1560, 4, 300, 62), font=52, fg=c["hi"], halign="right", valign="center"),
         wid("date", (1440, 66, 420, 36), font=24, fg=c["muted"], halign="right", valign="center"),
@@ -1559,12 +1567,12 @@ class PanelBase(Screen):
         self.posterPixmap = None
 
         for name in ("title", "credit", "h_ver", "h_server", "clock", "date", "b_model", "b_image", "b_py", "b_ip",
-                     "b_cpu", "b_ram", "b_hdd", "cart_n"):
+                     "b_cpu", "b_ram", "b_hdd", "cart_n", "bell_n"):
             self[name] = Label("")
         self["title"].setText(TITLE)
         self["credit"].setText(CREDIT)
         self["h_ver"].setText(u"V" + PLUGIN_VERSION)
-        for name in ("title_glow", "title_img", "logo_glow", "logo_img", "box_pic", "cart_img", "dn_img", "credit_img"):
+        for name in ("title_glow", "title_img", "logo_glow", "logo_img", "box_pic", "cart_img", "dn_img", "credit_img", "bell_img"):
             self[name] = Pixmap()
         for prefix in ("ram", "hdd"):
             self["%s_bar" % prefix] = MenuList([], content=eListboxPythonMultiContent)
@@ -1590,6 +1598,7 @@ class PanelBase(Screen):
             "3": self.toggleMark, "4": self.askUninstall,
             "0": self.openDescription,
             "5": self.openDescription,
+            "6": self.openNotifs,                       # مركز الإشعارات
         }
         self["actions"] = ActionMap(ACTION_CONTEXTS, dict((k, safe(v)) for k, v in keys.items()), -1)
 
@@ -1795,12 +1804,15 @@ class PanelBase(Screen):
         self.showBoxInfo()
         self.updateStats()
         self.updateClock()
+        self.updateBell()
         self.tickTimer.start(2000, False)
         self.refresh(initial=True)
 
     def onTick(self):
         self.tickCount += 1
         self.updateClock()
+        if self.tickCount % 3 == 1:
+            self.updateBell()
         if self.tickCount % 2 == 0:
             self.updateStats()
 
@@ -2016,8 +2028,10 @@ class PanelBase(Screen):
         try:
             it = self.currentItem()
             self.rebuild(item_key(it) if it else None, self.selIndex())
-            n = len([1 for _c, items in self.allcats for x in items if update_available(x)])
-            flush_installed_hashes()
+            pairs = compute_plugin_updates(self.allcats)
+            n = len(pairs)
+            add_update_notifs(pairs)
+            self.updateBell()
             if n:
                 self.flash(u"%d update(s) available  -  see 'Updates'" % n)
         except Exception as e:
@@ -2291,6 +2305,24 @@ class PanelBase(Screen):
             self[name].setText(text)
         self.updateCart(n)
 
+    def updateBell(self):
+        """Bell in the header: grey when empty, gold with a red counter when there are notifications."""
+        try:
+            n = notif_count()
+            inst = self["bell_img"].instance
+            if inst is not None:
+                ptr = badge_pix("bell_on" if n else "bell_off")
+                if ptr:
+                    inst.setPixmap(ptr)
+                    inst.show()
+            self["bell_n"].setText((u"%d" % n) if n < 100 else u"99+")
+            setVisible(self["bell_n"], bool(n))
+        except Exception as e:
+            dlog_error("updateBell: %s" % e)
+
+    def openNotifs(self):
+        self.session.openWithCallback(lambda *a: self.updateBell(), NotificationsScreen)
+
     def updateCart(self, n):
         """Shopping cart in the header: grey when empty, gold with the number of selected plugins inside otherwise."""
         try:
@@ -2543,6 +2575,8 @@ def _write_json(path, data):
 
 # ---- أيقونات صغيرة مدمجة (PNG): نجمة المفضلة + علامة الاختيار + نجمة القسم ----
 BADGES = {
+    "bell_off": "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",
+    "bell_on": "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",
     "sun": "iVBORw0KGgoAAAANSUhEUgAAADgAAAA4CAYAAACohjseAAAJO0lEQVR42t2bX2xb1R3HP7/jaztxQtLESUjaAC19ACUSj4MKpFUrEtOmdi+QFY1VdBLKG0ybBu3LnExMVIjtgbdKSK2yItKUB2g1BBKBVipUwP5ISInGNi3p0s4hidOkcZ3Yvvf89mBf528T24lT0SNF8c31Ped8z++c7+97vucGtrFoDEdjONyNRUHW+nxXgdP+6EHtjx68q0DqAIHc76aYftii+mGL6tloz9J7lSxS6cgJaB7gCEG5H4CsXpWuqQdXfqcSxWxjMOexanAwqH7hR7CS4LYboCnMGSEFQHPl16EpZS3ppzga25JBKasOjWH0U5xS1m5ROUkVEcFbca3bSla5Ni292FL64BRZserbTd+n2TzBROaMyMxVHSAgXYugSyy2VCYWwdMzOx6gJfQck/ayyNSlYkCaIipWPRfdTw2DCK9S5VzW0427pAuvRJq3PrWiRACY3DgC/kDq6cZdVDmXEV6lhkE9F90vgm7Uh/XXQoEEzJPUmgBTXpKQtFNnPtKB5tYSQVZjxOJiEXkUQLrw1kv4BXADza3UmY8ISTtTXpJaEwDzZDFEtT7Ai1hVBJdTzNoxak0tKU0Tkk4COqin1gcpLBvh01SLoVoMqn0bpYkCuFPNrQR0kJB0ktI0taaWWTuGyylVhIvrT3cpeg3+qbGdiPmIsHSQ1AVqpYq0DnNTDsjRyXFVjMjyxhSEAQw3MNJNVt+J/gRAnk28rycJ0oClC7sSpF+XnmpupU4HV7WZsk/Jz6evFbMGpehF7k+VwIoGMzqENYfk6Yn/aAwjvfmon8MsJyFhEcfSz3nJ9gxWBC3U8W7Lgxh7npB0LgPnyQHpmhwvluSkJCbzp4w/qnOaplbCpPW/BM33ODQxQQ8B6cUF0JNtEebi+/DYh0cnQls+tHGEIYJc4Z62K9IdT/nbKXrwON/SQtZ+SVjuJ6lp7pHwstlSAoNLyXTtR9LRQYLSQdKmaQyEmfUOMJS4KL1Y/UNdI9x8EZcj1Jg97AhDVRiCTq7FrAsLGZhNw5w3gqEPw5vya6Y1hqEzup/6wCDTXppaEyarw7ilRa5ssV0A2Ve/h5rgJ9Sa3cx6H7LgPC1Hvr2lf+QgHm/SGNxNtAEa6iyRoMWYpe0pVmEha5hNGqamYTI9Crwov+GC9t1bQ5X7LvWBH5K0o9zK/kCOzI6Uk3ulTFWRI4GTbU3sznYwOnVFusnqGxzD4TV2NkJ7s0vYMbjWoAqqq5s2AgFjcT1LPOEwNgkLHJeXOaEnCbK7aR+jwWHpjk+tRWIV3S75ZFC4fp1j3MNrtO/0aGsQPM9g85uhDUYLEQgGLFNzyui1ADfscTnGidu1tW37QY3hyO9w9Y3Aj3C8P7N3Z5bWRodsVjYEthbQoKPcmHP5x1iQlPmxHPM+0N/i+KS1rQBV88+epp5xhtjb0MbeXUoma0oGtxRkKGi5NiEMT8RppZPnmQUoV9yXv/XpyelUvuUlWpydtLd4uG754PIoyLqGtqhHe9VO4rwkgtJTvrVRHsn4z51sqyYR/4bOll3salaymwS4OFUtUzPC365fJ9r2EN3xeV/6lVqds2YKuM2mVnqxvraULjydjj9GnWmnoc7i2c2D86Poeoa6WkvUaWci/pjAJzpAQP12BwisEtmTqH9vaSpZBtC/sR5j5QfAyYfycXaEleqQxbVmywwIVQg5lsaIMHnzcZBPGFLxyWa9XLjynrOUhvVstIcqeYY042s+HaaVBT1HV6KXXgHVTqrCgvG15RZaLAJUhwWhM7/mPX042kNEnmFBv0ZYWCYclCqq5BFSek6eTfT4mJzCtOyPHqQ+EOOWQpiONRt1gXoToz/6d0i8j9BG0KmM/ahIXtq1gUJ/9BAN+f5FpGNViwpkgAYT0/7oX+Vw4oIOEPhunhNktGjOdHxSkcOJC3o22rvhFJ215zicOM+zAqpxXBcq4W0Kiuvmdh4IHE6cpz/aS0S6SK+Z4ixhhRk9K4cTFzSW2645S0lFfproAXo2nD3DOKAuyhALmZxwroTFOZ9RlKFC3u3N9W8tN3zl33xM5aaJXEUBPmN2QVjIGkLOGoJ6E6ki4xlupATlM1DozNkf0oW3Vj5cPCJYnia2JtE/0rqL1ugWJXogaCw35oS/jF2nkYfoZlmiv51RtRZwUyaDKzEC0h1PYXiLqWnB9eyWJHoUFMtUQvB4S7pJEVtuTgnoWj+VFdsPN7Vxf+vmxXbQsUxMC1/H44Tp5Jd3SGz7Ilh+wQwm8AJjU0Ji1iPoaFlrURUcR0mmPEa+FYQX5FfMFET9dp8u5ZWCi4K84n1AiuOMXA8yPWcJObbQ6WKAKbnIJect/x4LMmOPyyt8gIL04m7mwGdrLYvXOUaVvMYDzdAWdTGyaFncji0DxgKWyRmHkXGYy+3mt8qyKHlk8ucVVvvq99CU/QrMJRqi57Xv3hp5mROk9RD/nBjlm1GHqVmDVUsw4BJyXIKOR9DxCDm5a8UyM2f411WH4f+NkrKH5BgntO/eGhqi58Fcoin7lfbV7xFZ3MlULILF24Y04vIiwhHqg3torIbqvG0I4Lown4Eb8zCbGcGjD+cO24blGb9EmGEfln3oCuNXGcLhCju4It3cWeN389a9LMniq6/vqHX/XT98MRulAgB9p3kvEfM5IekgqelV4PLEczvpJN1k9Wy0h4bAezQE3tOBpph0k72dvPIJRY5OjnNTDpDWYWqliqSmCUkHEfO5vtO8d2kfy2PR/RgRFIej1Jv7SNokEQmT0SG8jdeDghTuiRxhXi3zaoHnNzoALfgrRyfH8eQAGR0iImGSNkm9uQ+HoyIo+zcDsHDEbD8maT2aArVk9Bo37VPFrINlB6CqX+BgsGogJ543XD8FE2lynJv2KTJ6jaZALUnrgf14eR+LcNXWbEARkcRFfbvpABGeYME9I8/PXC+ayXz3S0gtiVXR+XcR5PR1PbPjCepCz3GLy/KzxKWVb3+UDNDXnLmKpi4Bl5YQj1dpUbF6oGeuAr9fSn4l+aLrgvS9yIvYciTTFuyBVWMY9mOYRIsdYKeUUdxkHzc9KNK7+CJQ5c8mii0+CSiRJRNq22ZARQGuSBOP4mIxYoHquwLgijTRV3hPBk4XJCDb+85bxSIJd+krzaucuLsR3BJtu+3/VvB/iUN29JN7gawAAAAASUVORK5CYII=",
     "moon": "iVBORw0KGgoAAAANSUhEUgAAADgAAAA4CAYAAACohjseAAAIO0lEQVR42u1Za2wc1RX+zr0z4337sd51bCdOnLoJ2KYp1IpQ+ZP8qSpEX2q9UmkppKigoLZC5fUDqbujSigIBYioiCLStARQq7UQan9ElRoRp69ISaBFxARCSeO8HHu9fq033p2Ze09/7G6JQhxvnNhxVX/SrEY7o5n73e+c79xzB1jGMpaxjGUs4/8XtFAPZmbq6+sTQC8GYv3l92xCVwacSJD6n5ytZJJF8gAbzHzDJi6dZplOs7ypCiaTLFIpgIh05b8dv3o3VuRwR8Fxo4ZpRbXW0u8PEquJ7ONbun4PgKuJAiLiy88XkSBTOg1RCbkX937QrRD6JoCvWJbsDgf99eGwDzWWCV+NgGKBj06cGX1z133NBw8e9Mrvv+qgBzPcAwCrY3R0PiM0rkc12yadSEC99NrHd2gZeEII8Z1VK6JGrF6iPgwEfMyWKbVlADNF7b77YcHHWg/H4wcZzASi2ZQTRKRPDfHLoQC2AsCpId65ppkeqVxbUILpNMtEgtRDyV2B7nVf3Uam/5GV8Vq5MqbQEjc90wApBaE0iAhyIufqwwMFX3Z86qQzM3VvOs06lUqRDejZyA2e555QBFunp0v3hCPYOnie9xDR0WshacyX3LO7D68PBFt/W1sXvX11k8drVxlKSkt4HoyiU7pXEOB5Sv/zRFGMT+TOIndh85MP95zOn2Vh27ZeDOMz5kNu2ytHNgbDbX9ojIabblsLL1ofNBwX0nUBotLBDEgJHvikwMOZ/MWZqaFvPPVwz+nkATbszeTNagpEuqzQ0VNDvDMcKYVobgo717Rcm3rXZDKVnHvmlb93hMJr/tYcq41/6VbL89UYhuOV1Po0zADTAIazRfXOcVdOjp156LEtna/MRW4hTKYqgpWiPThY6zNb1h9qisdv29hpKp/PkJ6HK3qFEFBHBoryk3+fO/j4A5/bNB9yN6JMiGpu6uuDSCQSiqKrn4k2Nt/2hQ7p+f1XJscMGBIYyTo0NDLF5E49CQBdGVx7DSPiSqGfD7mqcrA3nZaJhFDb976/wbLqHlnTpFS0zi8LRUCI2QYGNTIhZC43uf+pH91+OMksEjS/5dn1LuvmVLAXvQAYrHw/b21uMNpb/ey4oNnICQHMFDSyky4AtRvMhP7qImUhIOYyllJJeG+9VRO8Z2VMs5SQzLPlDCAInC9AjmZGcx5ffBtEnNoEtSQJYlPpOlPNt1pbYtaKxhrleiC6ijVJAV1wBFxPHX/6wTsy8zWHxSHYX1pFSGndHauXsEwQ85y+zI4CPMc7BgCpfkjcRBhX8WiyifS2XUdrDUN01ocBparLJdcFPNZnl0ILN+uAk6lSjXQctAUDNVF/DUPz1cPz0lwkoLikCXZ1lQgy+eORUBCWKTRXmUmGAQDcvKQJVlD0ZiI+nwkpwFURZJBpAJZp3VI2Kr2kCTITSTlr6/YZKIbwmwxD0heTO/ZFbCINMC1ZghIAV6kBEcAaFPBp3RBtaPSHVt/FXOr6ly5B0yw4rkK5eZ1bQQ0E/VLHoiEIqvkuETF6l2CI9qGvPGJnLH+xAM/T1UYpiCDrgy77/MFvv/zGR2t7AZ1MslhSBDsHBhgA/PDO5nIzMzMOiKowGiLAU6CWeI1qXhEN5B3xNBFxZVW0ZAjats0A08zYnecLjntyKk+QorqWR2vAMmG0NirlC9Tet/3X791pbybvevY3FyIHOXkA0rahlfL+nJ1kZq7O8okA1wNWNlnUEguaRk10b3LHvkhv7+KH6lX7wf82qdp588JIbut4U0DURUx4CnOWDWbAMIToXGuofLH+81rd+gYRfZ2ZGShtf9x0F00kSDMztUf4L+PjY8dPD2sSonoVPQ+oi1iyq114kbr4PTteO/l6T0+PYdukkwfYuOkEAXCqv18mEt2OhPuLC1lFo+MOm0ZJoWpIOi7QEvcZ3e3kRRpW3PuDn731x2d3/7XF3kxeklksdF5W4/yUTDIBKVG79oGjq9tWbNjY7VPM1bdBzIBlAsPZgjdwUhvZsamzpPNP/OR7Hb+rzETy7beNrswmHhhIsW2nGLgxPWRVpa03nZZ9iYR6fvc7PVao9VDHmhBtWBcUjltd8b+UZP6ipz48VZTnRxXyuYn9WhdeeOz+9ftupoIAPt303b7n2I9rG9tf6lgJ95b2gFF0Ss+oto2SEiCAh7MFPjcqxNBIHvn89D8KhcI+Yhwcy547PjxzavRVe0thUQkCQGVv84VXTzxX29j2eFvc9TrXhoTWEEpXSbL8YxoAA2p80qXxaSkmcozxyTxmLk7nPcWZkaHBr9mP3nWsEj0LUiY+U/zLxTqRoCee33ti2nWaUjOFPLo6fJ6/RhquV252aY4ZLddJALIuYqKhFloIaE9F8K/TMnA2Y60ZHTkVXnQFPw210veB7XuO3WsFojtijQ2NbXEPq5oDnhSQWoOUrs5lpQATQU/kHJy+oOWFLGNqIvNWfvL0g4Xh/ZN2KsW4jk2refdplZxMvvintvrYuqSU1v0tK6KyNUZoiECHAoYWAmAGlQ8QgS9Rl4uOpslpJUcmCOeGHUxMTnwgtPPcT7/f/ptLxseLruDlJAFg+973NzCHtpqGdXckElwVbwwjEhII+kruKWUpfD0PKLjA1DSQnSggkxkvegqHJdzXR0/s2WvbdqH8oYevl9x1EyyHK5W+XZSI/jJ9IOQUV39Za3mHVqpbSLQSOAyAmLUGySIzjWrFZwjqiEXOoUd/2PXxlSZtSSGZnP+qpNT1s1yIrY0b/sCKogMxUFcGPNALTl0WapXr6O8HsEkv1sJ7GctYxjKWsYzL8B+6gxXz5WI3vgAAAABJRU5ErkJggg==",
     "sun_l": "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",
@@ -2761,7 +2795,7 @@ def record_alive(rec, dirs, pkgs):
 # ============================ كشف التحديثات ============================
 UPDATES_FILE = "/etc/enigma2/majorpanel_updates.json"     # آخر نتيجة فحص (حزم opkg القابلة للترقية)
 UPD_CAT = "Updates"
-_upd = {"pkgs": set(), "done": False, "busy": False, "started": False, "applied": True}
+_upd = {"pkgs": set(), "vers": {}, "done": False, "busy": False, "started": False, "applied": True}
 
 
 def updates_enabled():
@@ -2775,6 +2809,7 @@ def cmd_hash(it):
 def _scan_upgradable():
     """Thread: refreshes the opkg lists (at most every 12 h) and reads `opkg list-upgradable`."""
     names = set()
+    vers = {}
     try:
         st = _read_json(UPDATES_FILE, {})
         st = st if isinstance(st, dict) else {}
@@ -2787,15 +2822,19 @@ def _scan_upgradable():
             st["update_ts"] = now
         r = subprocess.run(["opkg", "list-upgradable"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=60)
         for line in r.stdout.decode("utf-8", "ignore").splitlines():
-            name = line.split(" - ")[0].strip()
+            parts = line.split(" - ")
+            name = parts[0].strip()
             if name and _PKG_RE.match(name):
                 names.add(name)
+                vers[name] = parts[2].strip()[:40] if len(parts) >= 3 else ""
         st["pkgs"] = sorted(names)
+        st["vers"] = vers
         st["ts"] = now
         _write_json(UPDATES_FILE, st)
     except Exception as e:
         dlog_error("update scan: %s" % e)
     _upd["pkgs"] = names
+    _upd["vers"] = vers
     _upd["done"] = True
     _upd["busy"] = False
     _upd["applied"] = False
@@ -2810,6 +2849,9 @@ def start_update_scan():
     st = _read_json(UPDATES_FILE, {})
     if isinstance(st, dict):
         _upd["pkgs"] = set(p for p in st.get("pkgs", []) if isinstance(p, str) and _PKG_RE.match(p))
+        sv = st.get("vers")
+        _upd["vers"] = dict((k, v) for k, v in (sv.items() if isinstance(sv, dict) else [])
+                            if isinstance(k, str) and isinstance(v, str))
     _upd["busy"] = True
     try:
         th = threading.Thread(target=_scan_upgradable)
@@ -2820,40 +2862,124 @@ def start_update_scan():
         dlog_error("update thread: %s" % e)
 
 
-def update_available(it):
-    """True when an installed item has a newer version: (1) one of its opkg packages is upgradable, or
-    (2) its install command in the online list changed since the panel last installed / saw it."""
+def update_info(it):
+    """'' when there is no update, else a token that changes with every new version:
+    'pkg:<package>:<new version>' (opkg says it can be upgraded) or 'cmd:<hash>' (the install command changed
+    in the online list since the panel last installed / saw it)."""
     if not updates_enabled():
-        return False
+        return ""
     key = item_key(it)
     cache = _installed["upd"]
     if key in cache:
         return cache[key]
-    res = False
+    tok = ""
     try:
         if installed_checker()(it):
             db = load_installed()
             dirs, pkgs, _names = system_state()
             rec = db["items"].get(key)
             plist = removable_pkgs(rec) if rec else discover_plugin(it, dirs, pkgs)[1]
-            if any(p in _upd["pkgs"] for p in plist):
-                res = True
+            for p in plist:
+                if p in _upd["pkgs"]:
+                    tok = "pkg:%s:%s" % (p, _upd["vers"].get(p, ""))
+                    break
             cur = cmd_hash(it)
             old = db["hashes"].get(key)
             if old is None:
                 db["hashes"][key] = cur             # أول مرة نراه: نعتبر النسخة الحالية هي الأساس
                 _installed["dirty"] = True
-            elif old != cur:
-                res = True
+            elif old != cur and not tok:
+                tok = "cmd:%s" % cur
     except Exception as e:
-        dlog_error("update_available: %s" % e)
-    cache[key] = res
-    return res
+        dlog_error("update_info: %s" % e)
+    cache[key] = tok
+    return tok
+
+
+def update_available(it):
+    return bool(update_info(it))
+
+
+def compute_plugin_updates(cats):
+    """[(item, token)] for every installed item of the given [(category, items)] that has an update."""
+    if not updates_enabled():
+        return []
+    _installed["upd"] = {}
+    out = []
+    for _cat, items in cats:
+        for it in items:
+            tok = update_info(it)
+            if tok:
+                out.append((it, tok))
+    flush_installed_hashes()
+    return out
 
 
 def flush_installed_hashes():
     if _installed["dirty"]:
         save_installed()
+
+
+# ============================ مركز الإشعارات ============================
+NOTIFS_FILE = "/etc/enigma2/majorpanel_notifs.json"
+NOTIF_MAX = 60
+_notifs = {"data": None}
+
+
+def _notifs_data():
+    if _notifs["data"] is None:
+        raw = _read_json(NOTIFS_FILE, {})
+        raw = raw if isinstance(raw, dict) else {}
+        items = []
+        for x in (raw.get("items") if isinstance(raw.get("items"), list) else []):
+            if isinstance(x, dict) and isinstance(x.get("id"), str) and isinstance(x.get("title"), str):
+                items.append({"id": x["id"][:160], "type": str(x.get("type", ""))[:8], "title": x["title"][:120],
+                              "text": str(x.get("text", ""))[:200], "ts": int(x.get("ts", 0) or 0)})
+        seen = raw.get("seen") if isinstance(raw.get("seen"), list) else []
+        _notifs["data"] = {"items": items, "seen": [s_ for s_ in seen if isinstance(s_, str)][-400:]}
+    return _notifs["data"]
+
+
+def _notifs_save():
+    d = _notifs_data()
+    _write_json(NOTIFS_FILE, {"items": d["items"], "seen": d["seen"][-400:]})
+
+
+def load_notifs():
+    return list(_notifs_data()["items"])
+
+
+def notif_count():
+    return len(_notifs_data()["items"])
+
+
+def add_notif(nid, kind, title, text):
+    """Adds one notification (newest first). An id that was ever added is not added again, even after the user
+    deleted it. Returns True when it is new."""
+    d = _notifs_data()
+    if nid in d["seen"]:
+        return False
+    d["seen"].append(nid)
+    d["items"].insert(0, {"id": nid, "type": kind, "title": title, "text": text, "ts": int(time.time())})
+    del d["items"][NOTIF_MAX:]
+    _notifs_save()
+    return True
+
+
+def remove_notifs(ids):
+    d = _notifs_data()
+    ids = set(ids)
+    d["items"] = [x for x in d["items"] if x["id"] not in ids]
+    _notifs_save()
+
+
+def add_update_notifs(pairs):
+    """pairs: [(item, token)] -> notifications; returns the names that were really new."""
+    fresh = []
+    for it, tok in pairs:
+        if add_notif("upd:%s:%s" % (item_key(it), tok), "upd", it["name"], u"A newer version is available | يتوفر إصدار أحدث"):
+            fresh.append(it["name"])
+    return fresh
 
 
 # ============================ النسخ الاحتياطي ============================
@@ -3262,10 +3388,18 @@ def check_background_notifications():
             "plugins": sorted(remote_keys),
     }):
         raise IOError("could not save notification state")
+    cats = []
+    if updates_enabled():
+        try:
+            cats = parse_commands(command_text)
+            _scan_upgradable()                      # opkg: الحزم القابلة للترقية (في الخيط الخلفي)
+        except Exception as e:
+            dlog_error("background update scan: %s" % e)
     return {
         "version": remote_version,
         "update": update_available,
         "new_plugins": [remote_names[key] for key in new_keys if remote_names.get(key)],
+        "cats": cats,
     }
 
 
@@ -3286,6 +3420,13 @@ def _show_background_notifications(result):
         lines.append(u"توجد إضافات جديدة: %s%s" % (
             u"، ".join(shown),
             u" وغيرها" if len(names) > len(shown) else "",
+        ))
+    upd = result.get("plugin_updates") or []
+    if upd and _state.get("updatealert", True):
+        shown = upd[:5]
+        lines.append(u"توجد تحديثات للإضافات: %s%s" % (
+            u"، ".join(shown),
+            u" وغيرها" if len(upd) > len(shown) else "",
         ))
     if lines:
         try:
@@ -3310,6 +3451,16 @@ def _notification_result(result):
     if not _state.get("notifications", DEFAULT_SETTINGS["notifications"]):
         _pending_notification_result = None
         return
+    try:                                        # مركز الإشعارات: يُسجَّل كل جديد (حتى والبانل مفتوح)
+        result["plugin_updates"] = []
+        if result.get("update"):
+            add_notif("panel:%s" % result["version"], "panel", u"Panel update | تحديث البانل",
+                      u"Major Enigma Panel V%s is available" % result["version"])
+        for name in result.get("new_plugins") or []:
+            add_notif("new:%s" % name.lower(), "new", name, u"New plugin | إضافة جديدة")
+        result["plugin_updates"] = add_update_notifs(compute_plugin_updates(result.get("cats") or []))
+    except Exception as e:
+        dlog_error("notification center: %s" % e)
     if _panel_open:
         _pending_notification_result = result
         return
@@ -3429,7 +3580,7 @@ class PluginDescriptionScreen(Screen):
 
 class ListPanel(PanelBase):
     HINT = ("LEFT/RIGHT : section   UP/DOWN : select   OK : install   1 : fav   2 : filter   3 : select   "
-            "4 : uninstall   0/5 : expand description   BLUE : refresh   MENU : settings   INFO : device info")
+            "4 : uninstall   0/5 : expand description   BLUE : refresh   MENU : settings   INFO : device info   6 : alerts")
 
     def buildSkin(self):
         c = tc()
@@ -3649,7 +3800,7 @@ class GridPanel(PanelBase):
     DEV = device_layout(125, 110)
     PIC = (1340, DEV["pic"][0], 510, 110)
     HINT = ("ARROWS : move   UP/DOWN at the edge : section   OK : install   1 : fav   2 : filter   3 : select   "
-            "4 : uninstall   0/5 : expand description   BLUE : refresh   MENU : settings   INFO : device info")
+            "4 : uninstall   0/5 : expand description   BLUE : refresh   MENU : settings   INFO : device info   6 : alerts")
 
     def buildSkin(self):
         c = tc()
@@ -3991,7 +4142,8 @@ class GridPanel(PanelBase):
 
 
 # --------------------------------- شاشة الإعدادات -----------------------------
-SETTINGS_ROWS = ("view", "style", "color", "anim", "splash", "autoupdate", "updatecheck", "notifications", "mainmenu",
+SETTINGS_ROWS = ("view", "style", "color", "anim", "splash", "autoupdate", "updatecheck", "updatealert", "notifications",
+                 "mainmenu",
                  "backupdir", "backup", "restore", "update")
 ACTION_ROWS = ("backup", "restore", "update")
 
@@ -4030,7 +4182,7 @@ def settings_skin():
                      'transparent="0" zPosition="2"/>' % (i, rect(400 + i * 220, 807, 190, 60), c["card2"], s(14),
                                                           max(1, s(2)), c["line"]))
     parts += [
-        wid("s_note", (390, 875, 1140, 75), font=16, fg=c["muted"], valign="center"),
+        wid("s_note", (390, 868, 1140, 84), font=16, fg=c["muted"], valign="center"),
         '<widget name="key_red" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
         'halign="center" valign="center" zPosition="2"/>' % (rect(500, 955, 440, 66), s(30), c["red"], s(16)),
         '<widget name="key_green" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
@@ -4055,6 +4207,7 @@ class SettingsScreen(Screen):
         self.autoupdate = st["autoupdate"]
         self.notifications = st["notifications"]
         self.updatecheck = st["updatecheck"]
+        self.updatealert = st["updatealert"]
         self.backupdir = st["backupdir"] or backup_locations()[0][0]
         self.orig = self.orig + (self.updatecheck,)
         cur = st["theme"] if st["theme"] in THEMES else MODERN_ORDER[0]
@@ -4071,8 +4224,9 @@ class SettingsScreen(Screen):
         for i in range(5):
             self["sw%d" % i] = Label("")
         self["s_note"] = Label(u"Check Plugin Updates: marks installed plugins that have a newer version ('Updates' section).\n"
+                               u"Plugin Update Alerts: shows a message on screen (panel closed) when plugins have updates.\n"
                                u"Backup: saves settings, favorites and install records to the chosen location.\n"
-                               u"Notifications: every 6 hours.  Animation: uses more CPU/RAM.  Save: apply.")
+                               u"Notifications: every 6 hours (needs Background Notifications).  Save: apply.")
         self["key_red"] = Label(u"إلغاء | Cancel")
         self["key_green"] = Label(u"حفظ وتطبيق | Save & Apply")
         self["hint"] = Label("LEFT / RIGHT : change     UP / DOWN : select     OK : on 'Update panel' runs the update")
@@ -4098,6 +4252,7 @@ class SettingsScreen(Screen):
             ("Splash", "On" if self.splash else "Off", True),
             ("Auto Check Update", "On" if self.autoupdate else "Off", True),
             ("Check Plugin Updates", "On" if self.updatecheck else "Off", True),
+            ("Plugin Update Alerts", "On" if self.updatealert else "Off", True),
             ("Background Notifications", "On" if self.notifications else "Off", True),
             ("Main Menu", "Show" if self.mainmenu else "Hide", True),
             ("Backup Location", backup_label(self.backupdir), True),
@@ -4161,6 +4316,8 @@ class SettingsScreen(Screen):
             self.autoupdate = not self.autoupdate
         elif row == "updatecheck":
             self.updatecheck = not self.updatecheck
+        elif row == "updatealert":
+            self.updatealert = not self.updatealert
         elif row == "notifications":
             self.notifications = not self.notifications
         elif row == "mainmenu":
@@ -4245,13 +4402,196 @@ class SettingsScreen(Screen):
         if self.updatecheck:
             _upd["started"] = False
         save_settings(theme, self.anim, self.mainmenu, self.splash, self.view, self.autoupdate, self.notifications,
-                      self.updatecheck, self.backupdir)
+                      self.updatecheck, self.backupdir, self.updatealert)
         configure_notification_monitor()
         self.close(changed)
 
     def cancel(self):
         self.close(False)
 
+
+
+# --------------------------------- مركز الإشعارات ---------------------------------
+def notif_sel_attr(w, h):
+    t = T()
+    try:
+        p = asset_path("sel_notif_%s" % _state["theme"])
+        if not os.path.isfile(p):
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            make_rounded_sel(p, s(w), s(h), t["card"], t["sel"], inset=max(2, s(5)), radius=max(6, s(16)),
+                             light=t.get("light", False))
+        return ' selectionPixmap="%s"' % p
+    except Exception as e:
+        dlog_error("notification selection: %s" % e)
+        return ""
+
+
+def notifs_skin():
+    c = tc()
+    sa = notif_sel_attr(1540, 100)
+    parts = [
+        '<screen name="MajorPanelNotifications" position="0,0" size="%d,%d" flags="wfNoBorder" backgroundColor="%s">' % (_W, _H, c["bg"]),
+        box((0, 0, 1920, 110), c["card"]),
+        '<eLabel position="0,%d" size="%d,%d" backgroundColor="%s" zPosition="1"/>' % (s(106), _W, max(2, s(4)), c["hdr"]),
+        pixw("n_bell", (60, 27, 64, 56), z=3),
+        wid("n_title", (150, 20, 1000, 70), font=46, fg=c["hi"], valign="center"),
+        wid("n_count", (1300, 20, 560, 70), font=30, fg=c["muted"], halign="right", valign="center"),
+        box((160, 135, 1600, 800), c["card"], 24),
+        '<widget name="rows" %s backgroundColor="%s" backgroundColorSelected="%s" foregroundColor="%s" '
+        'foregroundColorSelected="#FFFFFF" scrollbarMode="showNever"%s transparent="0" zPosition="2"/>' % (
+            rect(190, 160, 1540, 750), c["card"], c["card"] if sa else c["sel"], c["text"], sa),
+        wid("n_empty", (190, 400, 1540, 120), font=38, fg=c["muted"], halign="center", valign="center", z=3),
+    ]
+    for name, x, w, col in (("key_red", 40, 440, c["red"]), ("key_green", 500, 440, c["green"]),
+                            ("key_yellow", 960, 440, c["yellow"]), ("key_blue", 1420, 460, c["blue"])):
+        parts.append('<widget name="%s" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" '
+                     'cornerRadius="%d" halign="center" valign="center" zPosition="2"/>' % (
+                         name, rect(x, 955, w, 66), s(30), col, s(16)))
+    parts += [wid("hint", (40, 1030, 1840, 40), font=22, fg=c["omuted"], bg=c["bg"], halign="center", valign="center"),
+              '</screen>']
+    return "\n".join(parts)
+
+
+class NotificationsScreen(Screen):
+    TAGS = {"panel": (u"PANEL", "warn"), "new": (u"NEW", "ok"), "upd": (u"UPDATE", "accent")}
+
+    def __init__(self, session):
+        self.t = T()
+        self.skin = notifs_skin()
+        Screen.__init__(self, session)
+        self.marked = set()
+        self.items = []
+        self["n_bell"] = Pixmap()
+        self["n_title"] = Label(u"الإشعارات | Notifications")
+        self["n_count"] = Label("")
+        self["n_empty"] = Label("")
+        self["rows"] = MenuList([], enableWrapAround=True, content=eListboxPythonMultiContent)
+        self["rows"].l.setFont(0, gFont("Regular", s(34)))
+        self["rows"].l.setFont(1, gFont("Regular", s(24)))
+        self["rows"].l.setFont(2, gFont("Regular", s(26)))
+        self["rows"].l.setItemHeight(s(100))
+        self["key_red"] = Label(u"حذف الكل | Clear all")
+        self["key_green"] = Label(u"حذف المحدد | Delete selected")
+        self["key_yellow"] = Label(u"تحديد الكل | Select all")
+        self["key_blue"] = Label(u"إغلاق | Close")
+        self["hint"] = Label(u"OK : mark / unmark     GREEN : delete marked (or the highlighted one)     EXIT : close")
+        self["actions"] = ActionMap(
+            ["OkCancelActions", "ColorActions", "DirectionActions"],
+            {"ok": self.toggle, "green": self.deleteMarked, "red": self.askClear, "yellow": self.toggleAll,
+             "blue": self.close, "cancel": self.close, "up": self.up, "down": self.down,
+             "left": self.up, "right": self.down}, -1)
+        self.onLayoutFinish.append(self.start)
+        self.onClose.append(self.releaseKeys)
+
+    def releaseKeys(self):
+        release_actions(self["actions"])
+
+    def start(self):
+        try:
+            inst = self["n_bell"].instance
+            ptr = badge_pix("bell_on")
+            if inst is not None and ptr:
+                inst.setPixmap(ptr)
+                inst.show()
+        except Exception as e:
+            dlog_error("notification bell: %s" % e)
+        self.refresh()
+
+    def refresh(self, keep=None):
+        self.items = load_notifs()
+        self.marked &= set(x["id"] for x in self.items)
+        c = tc()
+        txt, sec, mut = hexint(c["text"]), hexint(c["second"]), hexint(c["muted"])
+        tick = badge_pix("check_small")
+        rows = []
+        for x in self.items:
+            tag, col = self.TAGS.get(x["type"], (u"", "muted"))
+            tagc = hexint(self.t[col])
+            row = [x["id"],
+                   MultiContentEntryText(pos=(s(76), s(10)), size=(s(1100), s(46)), font=0,
+                                         flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=x["title"],
+                                         color=txt, color_sel=selfg()),
+                   MultiContentEntryText(pos=(s(76), s(56)), size=(s(1100), s(34)), font=1,
+                                         flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=x["text"],
+                                         color=sec, color_sel=selsub()),
+                   MultiContentEntryText(pos=(s(1180), s(10)), size=(s(330), s(46)), font=2,
+                                         flags=RT_HALIGN_RIGHT | RT_VALIGN_CENTER, text=tag,
+                                         color=tagc, color_sel=tagc),
+                   MultiContentEntryText(pos=(s(1180), s(56)), size=(s(330), s(34)), font=1,
+                                         flags=RT_HALIGN_RIGHT | RT_VALIGN_CENTER,
+                                         text=time.strftime("%Y-%m-%d  %H:%M", time.localtime(x["ts"])) if x["ts"] else "",
+                                         color=mut, color_sel=selsub())]
+            if x["id"] in self.marked and tick is not None:
+                row.append(MultiContentEntryPixmapAlphaBlend(pos=(s(24), s(34)), size=(s(32), s(32)),
+                                                             png=tick, flags=BT_SCALE))
+            rows.append(row)
+        idx = 0
+        if keep:
+            for i, x in enumerate(self.items):
+                if x["id"] == keep:
+                    idx = i
+        self["rows"].setList(rows)
+        if rows:
+            self["rows"].moveToIndex(min(idx, len(rows) - 1))
+        self["n_empty"].setText(u"" if rows else u"لا توجد إشعارات | No notifications")
+        n = len(self.items)
+        self["n_count"].setText((u"%d notification(s)" % n) + (u"   |   %d marked" % len(self.marked) if self.marked else u""))
+        self["key_yellow"].setText(u"إلغاء التحديد | Unselect all" if self.items and len(self.marked) == n
+                                   else u"تحديد الكل | Select all")
+
+    def current(self):
+        cur = self["rows"].getCurrent()
+        return cur[0] if cur else None
+
+    def up(self):
+        self["rows"].up()
+
+    def down(self):
+        self["rows"].down()
+
+    def toggle(self):
+        key = self.current()
+        if not key:
+            return
+        if key in self.marked:
+            self.marked.discard(key)
+        else:
+            self.marked.add(key)
+        self.refresh(key)
+        self["rows"].down()
+
+    def toggleAll(self):
+        if not self.items:
+            return
+        if len(self.marked) == len(self.items):
+            self.marked = set()
+        else:
+            self.marked = set(x["id"] for x in self.items)
+        self.refresh(self.current())
+
+    def deleteMarked(self):
+        ids = set(self.marked)
+        if not ids and self.current():
+            ids = set([self.current()])                 # لا يوجد تحديد: نحذف الإشعار المظلّل
+        if not ids:
+            return
+        keep_idx = self["rows"].getSelectionIndex()
+        remove_notifs(ids)
+        self.marked = set()
+        self.refresh()
+        if self.items:
+            self["rows"].moveToIndex(min(keep_idx, len(self.items) - 1))
+
+    def askClear(self):
+        if not self.items:
+            return
+        ask(self.session, self.clearAll, u"حذف جميع الإشعارات؟\nClear all notifications?", default=False)
+
+    def clearAll(self, answer):
+        if answer:
+            remove_notifs([x["id"] for x in self.items])
+            self.marked = set()
+            self.refresh()
 
 
 # --------------------------------- شاشة معلومات الجهاز (زر INFO) ---------------------------------
