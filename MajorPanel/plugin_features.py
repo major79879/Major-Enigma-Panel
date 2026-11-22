@@ -139,14 +139,12 @@ def frame_png(width, height, colors, thickness=5):
         start, end = palette[index], palette[index + 1]
         return tuple(int(a + (b - a) * fraction + 0.5) for a, b in zip(start, end))
 
-    rows = []
-    for y in range(height):
-        row = bytearray(b"\x00")
-        for x in range(width):
-            inside_border = x < thickness or y < thickness or x >= width - thickness or y >= height - thickness
-            row.extend(color_at(x / float(width - 1)))
-            row.append(255 if inside_border else 0)
-        rows.append(row)
+    # one coloured pixel per column, then whole rows are built by joining (no per-pixel Python loop)
+    cols = [bytes(color_at(x / float(width - 1))) + b"\xff" for x in range(width)]
+    solid_row = b"\x00" + b"".join(cols)
+    mid_row = (b"\x00" + b"".join(cols[:thickness]) + b"\x00\x00\x00\x00" * (width - 2 * thickness)
+               + b"".join(cols[width - thickness:]))
+    rows = [solid_row if (y < thickness or y >= height - thickness) else mid_row for y in range(height)]
 
     def chunk(kind, payload):
         body = kind + payload
