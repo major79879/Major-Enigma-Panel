@@ -57,7 +57,7 @@ wget -qO- https://raw.githubusercontent.com/Ahmadarjan1/EnigmaPlay-Repo/main/ins
 wget -q -O - https://raw.githubusercontent.com/OliOli2013/PanelAIO-Plugin/main/installer.sh | /bin/sh
 
 ## === # Online 4 Tech - Ahmed Romeh # = # لوحة شاملة تجمع عشرات الأدوات والإضافات والخدمات # === ##
-wget -O /tmp/online4tech.sh https://online4tech.github.io/online4Tech/install.sh && chmod +x /tmp/online4tech.sh && /tmp/online4tech.sh
+wget -q --no-check-certificate -O - https://raw.githubusercontent.com/online4tech/Online4Tech-Panel1/panel-v2/install.sh | sh
 
 ## === # Mohamed Store - Mohamed Iraqy # = # لوحة شاملة تجمع عشرات الأدوات والإضافات والخدمات # === ##
 wget -O - https://raw.githubusercontent.com/wwwgoper77-wq/MohamedStore/main/install.sh | sh
@@ -203,10 +203,10 @@ wget -q "--no-check-certificate" https://github.com/angelheart150/My-tsiplayer/r
 ## === # My Streamer - Mohamed Nasser # = # أداة تشغيل أي بي تي في للمواقع المجانية # === ## 
 wget -qO - https://raw.githubusercontent.com/popking159/MyStreamer/refs/heads/main/myinstaller.sh | /bin/sh
 
-## === # Luka TV - Mohamed Nasser # = # بلاجن تشغيل أي بي تي في المدفوع باضافة الاشتراك # === ##
+## === # Luka TV - Mohamed Nasser # = # أداة تشغيل أي بي تي في المدفوع باضافة الاشتراك # === ##
 wget -qO - https://raw*githubusercontent*com/popking159/LukaTV/refs/heads/main/myinstaller.sh | /bin/sh
 
-## === # Luka Connect - Mohamed Nasser # = # بلاجن تشغيل أي بي تي في المدفوع باضافة الاشتراك # === ##
+## === # Luka Connect - Mohamed Nasser # = # أداة تشغيل أي بي تي في المدفوع باضافة الاشتراك # === ##
 wget -qO - https://raw*githubusercontent*com/popking159/lukaconnect/refs/heads/main/myinstaller.sh | /bin/sh
 
 ## === # Xtream New - Ahmed Hussein # = # أداة إضافة و تشغيل إشتراكات الأي بي تي في # === ## 
@@ -217,6 +217,9 @@ wget -qO- https://raw.githubusercontent.com/K3bOra/-UltraStalker/main/install.sh
 
 ## === # Tivi Mate E2 - Opes Boy # = # أداة إضافة و تشغيل إشتراكات الأي بي تي في # === ## 
 wget -qO- https://raw.githubusercontent.com/opesboy/TiviMateE2/main/install.sh | sh
+
+## === # Kanasa Stream - Kanasa # = # أداة تشغيل أي بي تي في للمواقع المجانية # === ##
+wget -O - https://kanasastream.online/enigma2/install.sh | sh
 
 ## =============================== +++ Skins +++ ============================== ##
 
