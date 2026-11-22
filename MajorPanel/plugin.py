@@ -1079,40 +1079,55 @@ def make_light_title(mask_b64, stops, frames):
 BYLINE_W, BYLINE_H = 240, 44
 
 
-def make_byline(mask_b64, th):
-    """'By John Kamel' in a bold-italic script style. Modern: coloured with the theme gradient; Classic: theme colour.
-    The text shape is a small alpha mask kept in assets.py; the result is written to ASSET_DIR/by_img.png."""
-    W, H = BYLINE_W, BYLINE_H
+def _gradient_mask_png(name, W, H, mask_b64, stops=None, solid=None):
+    """Writes ASSET_DIR/<name>.png: the alpha mask painted with the theme gradient (stops) or one colour (solid).
+    Row based: empty rows are skipped and only the columns that hold text are touched."""
     raw = zlib.decompress(base64.b64decode(mask_b64))
-    xs = [x for y in range(H) for x in range(W) if raw[y * W + x]]
-    x0, x1 = (min(xs), max(xs)) if xs else (0, W - 1)
-    stops = th.get("stops")
+    rows = [raw[y * W:(y + 1) * W] for y in range(H)]
+    x0, x1 = W, -1
+    for row in rows:
+        body = row.strip(b"\x00")
+        if body:
+            x0 = min(x0, len(row) - len(row.lstrip(b"\x00")))
+            x1 = max(x1, len(row.rstrip(b"\x00")) - 1)
+    if x1 < 0:
+        x0, x1 = 0, W - 1
     cols = []
     for x in range(W):
         if stops:
             n = len(stops) - 1
             u = min(max((x - x0) / float(max(1, x1 - x0)), 0.0), 1.0) * n
-            i = min(int(u), n - 1)
-            fr = u - i
-            c0, c1 = stops[i], stops[i + 1]
-            cols.append(bytes(int(c0[j] + (c1[j] - c0[j]) * fr) for j in range(3)))
+            k = min(int(u), n - 1)
+            fr = u - k
+            c0, c1 = stops[k], stops[k + 1]
+            cols.append(bytes(int(c0[q] + (c1[q] - c0[q]) * fr) for q in range(3)))
         else:
-            cols.append(bytes(_hex_rgb(ring_hex(th))))
+            cols.append(bytes(solid))
+    empty = b"\x00" * (W * 4 + 1)
     data = []
-    for y in range(H):
+    for row in rows:
+        if not row.strip(b"\x00"):
+            data.append(empty)
+            continue
         line = bytearray(W * 4)
-        for x in range(W):
-            v = raw[y * W + x]
+        for x in range(len(row) - len(row.lstrip(b"\x00")), len(row.rstrip(b"\x00"))):
+            v = row[x]
             if v:
                 o = x * 4
                 line[o:o + 3] = cols[x]
                 line[o + 3] = v
         data.append(b"\x00" + bytes(line))
-    write_png_rgba(asset_path("by_img"), W, H, b"".join(data))
+    write_png_rgba(asset_path(name), W, H, b"".join(data))
+
+
+def make_byline(mask_b64, th):
+    """'By John Kamel' in a bold-italic script style. Modern: the theme gradient; Classic: the theme colour."""
+    _gradient_mask_png("by_img", BYLINE_W, BYLINE_H, mask_b64, stops=th.get("stops"),
+                       solid=_hex_rgb(ring_hex(th)))
 
 
 def make_pill_texts(masks, th):
-    """Modern themes: the words INSTALL / INSTALLED as images coloured with the theme gradient
+    """Modern themes: the words INSTALL / INSTALLED / UPDATE as images coloured with the theme gradient
     (list rows 180x44 -> pt_*_l, Grid badge 230x52 -> pt_*_g)."""
     stops = th.get("stops")
     if not stops:
@@ -1121,29 +1136,8 @@ def make_pill_texts(masks, th):
     for key, mask_b64 in masks.items():
         word, kind = key.rsplit("_", 1)
         W, H = sizes[kind]
-        raw = zlib.decompress(base64.b64decode(mask_b64))
-        xs = [x for y in range(H) for x in range(W) if raw[y * W + x]]
-        x0, x1 = (min(xs), max(xs)) if xs else (0, W - 1)
-        n = len(stops) - 1
-        cols = []
-        for x in range(W):
-            u = min(max((x - x0) / float(max(1, x1 - x0)), 0.0), 1.0) * n
-            i = min(int(u), n - 1)
-            fr = u - i
-            c0, c1 = stops[i], stops[i + 1]
-            cols.append(bytes(int(c0[j] + (c1[j] - c0[j]) * fr) for j in range(3)))
-        data = []
-        for y in range(H):
-            line = bytearray(W * 4)
-            for x in range(W):
-                v = raw[y * W + x]
-                if v:
-                    o = x * 4
-                    line[o:o + 3] = cols[x]
-                    line[o + 3] = v
-            data.append(b"\x00" + bytes(line))
         code = {"INSTALL": "insta", "INSTALLED": "insd", "UPDATE": "upd"}.get(word, word.lower())
-        write_png_rgba(asset_path("pt_%s_%s" % (code, kind)), W, H, b"".join(data))
+        _gradient_mask_png("pt_%s_%s" % (code, kind), W, H, mask_b64, stops=stops)
 
 
 def pill_text_color(th):
@@ -2008,7 +2002,7 @@ class PanelBase(Screen):
     def beginUpdateScan(self):
         if not updates_enabled():
             return
-        start_update_scan()
+        self._scanDue = time.time() + 8                 # بعد استقرار الفتح: لا نزاحم تحميل الواجهة
         try:
             self.updTimer.start(2500, False)
         except Exception:
@@ -2020,10 +2014,18 @@ class PanelBase(Screen):
         if not updates_enabled() or (_upd["done"] and _upd["applied"]):
             self.updTimer.stop()
             return
+        if not _upd["started"]:
+            if time.time() >= getattr(self, "_scanDue", 0):
+                start_update_scan()
+            return
         if not _upd["done"] or _upd["applied"]:
             return
         _upd["applied"] = True
         self.updTimer.stop()
+        snap = (frozenset(_upd["pkgs"]), tuple(sorted(_upd["vers"].items())))
+        if snap == _upd.get("snap"):                    # نفس النتيجة السابقة: لا حاجة لإعادة بناء القوائم
+            return
+        _upd["snap"] = snap
         _installed["upd"] = {}
         try:
             it = self.currentItem()
@@ -2270,7 +2272,7 @@ class PanelBase(Screen):
         if updates_enabled():
             _upd["started"] = False
             _upd["applied"] = False
-            self.beginUpdateScan()
+            self.beginUpdateScan()                      # بعد 8 ثوانٍ وبأقل أولوية
         _ui["queue"][:] = [k for k in _ui["queue"] if k not in ran]
         try:
             self.updateButtons()
@@ -2309,6 +2311,9 @@ class PanelBase(Screen):
         """Bell in the header: grey when empty, gold with a red counter when there are notifications."""
         try:
             n = notif_count()
+            if n == getattr(self, "_bellN", None):
+                return
+            self._bellN = n
             inst = self["bell_img"].instance
             if inst is not None:
                 ptr = badge_pix("bell_on" if n else "bell_off")
@@ -2806,7 +2811,7 @@ def cmd_hash(it):
     return hashlib.md5((it.get("cmd") or "").encode("utf-8", "ignore")).hexdigest()[:12]
 
 
-def _scan_upgradable():
+def _scan_upgradable(refresh=False):
     """Thread: refreshes the opkg lists (at most every 12 h) and reads `opkg list-upgradable`."""
     names = set()
     vers = {}
@@ -2814,13 +2819,16 @@ def _scan_upgradable():
         st = _read_json(UPDATES_FILE, {})
         st = st if isinstance(st, dict) else {}
         now = time.time()
-        if now - float(st.get("update_ts", 0) or 0) > 12 * 3600:
-            try:
-                subprocess.run(["opkg", "update"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+        low = ["nice", "-n", "19"] if shutil.which("nice") else []          # أقل أولوية: لا يبطّئ الواجهة
+        if refresh and now - float(st.get("update_ts", 0) or 0) > 12 * 3600:
+            try:                                                           # تحميل قوائم الحزم: فقط من المراقب الخلفي
+                subprocess.run(low + ["opkg", "update"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                               timeout=120)
             except Exception:
                 pass
             st["update_ts"] = now
-        r = subprocess.run(["opkg", "list-upgradable"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=60)
+        r = subprocess.run(low + ["opkg", "list-upgradable"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                           timeout=60)
         for line in r.stdout.decode("utf-8", "ignore").splitlines():
             parts = line.split(" - ")
             name = parts[0].strip()
@@ -2840,18 +2848,26 @@ def _scan_upgradable():
     _upd["applied"] = False
 
 
-def start_update_scan():
-    """Loads the last result immediately, then rescans in the background (once per panel session)."""
-    if not updates_enabled() or _upd["started"]:
+def load_update_cache():
+    """Last scan result from disk (cheap, once per session) so the badges are right at the first draw."""
+    if _upd.get("loaded"):
         return
-    _upd["started"] = True
-    _upd["done"] = False
+    _upd["loaded"] = True
     st = _read_json(UPDATES_FILE, {})
     if isinstance(st, dict):
         _upd["pkgs"] = set(p for p in st.get("pkgs", []) if isinstance(p, str) and _PKG_RE.match(p))
         sv = st.get("vers")
         _upd["vers"] = dict((k, v) for k, v in (sv.items() if isinstance(sv, dict) else [])
                             if isinstance(k, str) and isinstance(v, str))
+
+
+def start_update_scan():
+    """Rescans in a background thread (once per panel session; the panel only reads opkg's local lists)."""
+    if not updates_enabled() or _upd["started"]:
+        return
+    _upd["started"] = True
+    _upd["done"] = False
+    load_update_cache()
     _upd["busy"] = True
     try:
         th = threading.Thread(target=_scan_upgradable)
@@ -2868,6 +2884,7 @@ def update_info(it):
     in the online list since the panel last installed / saw it)."""
     if not updates_enabled():
         return ""
+    load_update_cache()
     key = item_key(it)
     cache = _installed["upd"]
     if key in cache:
@@ -3421,7 +3438,7 @@ def check_background_notifications():
     if updates_enabled():
         try:
             cats = parse_commands(command_text)
-            _scan_upgradable()                      # opkg: الحزم القابلة للترقية (في الخيط الخلفي)
+            _scan_upgradable(refresh=True)          # opkg: الحزم القابلة للترقية (في الخيط الخلفي، والبانل مغلق)
         except Exception as e:
             dlog_error("background update scan: %s" % e)
     return {
@@ -3488,7 +3505,7 @@ def _notification_result(result):
                       u"Major Enigma Panel V%s is available" % result["version"])
         for name in result.get("new_plugins") or []:
             add_notif("new:%s" % name.lower(), "new", name, u"New plugin | إضافة جديدة")
-        result["plugin_updates"] = add_update_notifs(compute_plugin_updates(result.get("cats") or []))
+        result["plugin_updates"] = add_update_notifs(compute_plugin_updates(result.pop("cats", None) or []))
     except Exception as e:
         dlog_error("notification center: %s" % e)
     if _panel_open:
