@@ -4460,7 +4460,7 @@ class NotificationsScreen(Screen):
         self.skin = notifs_skin()
         Screen.__init__(self, session)
         self.marked = set()
-        self.items = []
+        self.nitems = []
         self["n_bell"] = Pixmap()
         self["n_title"] = Label(u"الإشعارات | Notifications")
         self["n_count"] = Label("")
@@ -4498,13 +4498,13 @@ class NotificationsScreen(Screen):
         self.refresh()
 
     def refresh(self, keep=None):
-        self.items = load_notifs()
-        self.marked &= set(x["id"] for x in self.items)
+        self.nitems = load_notifs()
+        self.marked &= set(x["id"] for x in self.nitems)
         c = tc()
         txt, sec, mut = hexint(c["text"]), hexint(c["second"]), hexint(c["muted"])
         tick = badge_pix("check_small")
         rows = []
-        for x in self.items:
+        for x in self.nitems:
             tag, col = self.TAGS.get(x["type"], (u"", "muted"))
             tagc = hexint(self.t[col])
             row = [x["id"],
@@ -4527,16 +4527,16 @@ class NotificationsScreen(Screen):
             rows.append(row)
         idx = 0
         if keep:
-            for i, x in enumerate(self.items):
+            for i, x in enumerate(self.nitems):
                 if x["id"] == keep:
                     idx = i
         self["rows"].setList(rows)
         if rows:
             self["rows"].moveToIndex(min(idx, len(rows) - 1))
         self["n_empty"].setText(u"" if rows else u"لا توجد إشعارات | No notifications")
-        n = len(self.items)
+        n = len(self.nitems)
         self["n_count"].setText((u"%d notification(s)" % n) + (u"   |   %d marked" % len(self.marked) if self.marked else u""))
-        self["key_yellow"].setText(u"إلغاء التحديد | Unselect all" if self.items and len(self.marked) == n
+        self["key_yellow"].setText(u"إلغاء التحديد | Unselect all" if self.nitems and len(self.marked) == n
                                    else u"تحديد الكل | Select all")
 
     def current(self):
@@ -4561,12 +4561,12 @@ class NotificationsScreen(Screen):
         self["rows"].down()
 
     def toggleAll(self):
-        if not self.items:
+        if not self.nitems:
             return
-        if len(self.marked) == len(self.items):
+        if len(self.marked) == len(self.nitems):
             self.marked = set()
         else:
-            self.marked = set(x["id"] for x in self.items)
+            self.marked = set(x["id"] for x in self.nitems)
         self.refresh(self.current())
 
     def deleteMarked(self):
@@ -4579,17 +4579,17 @@ class NotificationsScreen(Screen):
         remove_notifs(ids)
         self.marked = set()
         self.refresh()
-        if self.items:
-            self["rows"].moveToIndex(min(keep_idx, len(self.items) - 1))
+        if self.nitems:
+            self["rows"].moveToIndex(min(keep_idx, len(self.nitems) - 1))
 
     def askClear(self):
-        if not self.items:
+        if not self.nitems:
             return
         ask(self.session, self.clearAll, u"حذف جميع الإشعارات؟\nClear all notifications?", default=False)
 
     def clearAll(self, answer):
         if answer:
-            remove_notifs([x["id"] for x in self.items])
+            remove_notifs([x["id"] for x in self.nitems])
             self.marked = set()
             self.refresh()
 
