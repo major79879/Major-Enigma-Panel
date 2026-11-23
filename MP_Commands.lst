@@ -160,6 +160,9 @@ wget -O /tmp/mytranslator.ipk "https://github.com/ismailelkhooly/Ismail-/release
 ## === # My Translator V1.81 - Ismail El Khouly # = # أداة لترجمة النصوص والصوت داخل القنوات # === ##
 wget -O /tmp/mytranslator.ipk "https://github.com/ismailelkhooly/Ismail-/releases/download/1.81/enigma2-plugin-extensions-mytranslator_1.81.ipk" && opkg install /tmp/mytranslator.ipk && rm -f /tmp/mytranslator.ipk
 
+## === # My Translator V1.82 - Ismail El Khouly # = # أداة لترجمة النصوص والصوت داخل القنوات # === ##
+wget --no-check-certificate -O /tmp/enigma2-plugin-extensions-mytranslator_1.82.ipk "https://github.com/ismailelkhooly/Ismail-/releases/download/v1.82/enigma2-plugin-extensions-mytranslator_1.82.ipk" && opkg install --force-reinstall /tmp/enigma2-plugin-extensions-mytranslator_1.82.ipk
+
 ## === # Subextractor Lite - Arian 7S # = # أداة لاستخراج الترجمات المدمجة وإنشاء ملفات ترجمة مستقلة # === ##
 wget https://raw.githubusercontent.com/Arian7s/SubExtractorLite/main/installer.sh -O - | /bin/sh
 
@@ -353,3 +356,4 @@ wget -O /tmp/installer_B0015.sh "https://raw.githubusercontent.com/major79879/Ma
 
 ## === # Bootlogo_B0016 - John Kamel # = # إضافة شعار إقلاع لصورة أوبن إيه تي في لجهاز أوكتاجون # === #
 wget -O /tmp/installer_B0016.sh "https://raw.githubusercontent.com/major79879/Major_Addons/refs/heads/main/Bootlogo/OpenATV/installers/installer_B0016.sh" && sed -i 's/\r$//' /tmp/installer_B0016.sh && sh /tmp/installer_B0016.sh
+
