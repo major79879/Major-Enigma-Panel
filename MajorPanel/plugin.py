@@ -763,6 +763,7 @@ def load_online():
     if "+++" not in text:
         raise ValueError("bad file")
     write_cache(text)
+    _online["ts"] = time.time()
     return text, "online"
 
 
@@ -1009,6 +1010,27 @@ def pix(name):
         return None
 
 
+_timing_t = {"t0": 0.0}
+
+
+def timing(label, reset=False):
+    """Diagnostics: if the file /tmp/majorpanel_timing exists, phases are logged to the error log."""
+    try:
+        if not os.path.exists("/tmp/majorpanel_timing"):
+            return
+        now = time.time()
+        if reset:
+            _timing_t["t0"] = now
+        dlog_error("timing  %-26s +%.2fs" % (label, now - _timing_t["t0"]))
+    except Exception:
+        pass
+
+
+_assets_state = {"sig": None, "view": None}        # what is currently extracted in ASSET_DIR
+_reopen = {}                                       # set while the panel reopens itself (view / theme change)
+_online = {"ts": 0.0}                              # last successful download of the command list
+
+
 def release_assets():
     """Drop the big assets module from RAM."""
     try:
@@ -1022,6 +1044,7 @@ def release_assets():
 
 
 def cleanup_assets():
+    _assets_state["sig"] = None
     _icon_cache.clear()
     shutil.rmtree(ASSET_DIR, ignore_errors=True)
     gc.collect()
@@ -1152,64 +1175,73 @@ def pill_text_color(th):
 
 
 def prep_assets(theme_key, anim, splash=False, view="list"):
-    """Extracts only the pictures needed for this theme / animation setting."""
+    """Extracts only the pictures needed for this theme / animation setting.
+    When only the VIEW changed (List <-> Grid) the common pictures (logo, title, bars, pills, texts) are kept and only the
+    view specific ones are written, which makes the switch much faster."""
     try:
         from . import assets as a
     except Exception as e:
         dlog_error("assets.py not available: %s" % e)
         return False
     ok = False
+    sig = (theme_key, bool(anim))
+    light = (_assets_state["sig"] == sig and _assets_state["view"] != view and os.path.isdir(ASSET_DIR))
     try:
         _icon_cache.clear()
-        shutil.rmtree(ASSET_DIR, ignore_errors=True)
-        os.makedirs(ASSET_DIR, exist_ok=True)
         th = THEMES.get(theme_key) or THEMES["neon_blue"]
-        _put("logo", a.LOGO)
-        if splash:
-            _put("splash", a.SPLASH)
-        _put("box_default", a.DEFAULT_BOX)
-        if th["modern"] and th.get("light"):
-            make_light_title(a.TITLE_MASK, th["stops"], 12 if anim else 1)
-        if th["modern"] and not th.get("light"):
-            glow = a.LOGO_GLOW
-            if anim:
-                for i, g in enumerate(glow):
-                    _put("lg%d" % i, g)
-            else:
-                _put("lg_static", glow[min(3, len(glow) - 1)])
-            fam = a.TITLE[th["title_set"]]
-            _put("tglow", fam["glow"])
-            for i, fr in enumerate(fam["frames"] if anim else fam["frames"][:1]):
-                _put("f%02d" % i, fr)
+        if not light:
+            shutil.rmtree(ASSET_DIR, ignore_errors=True)
+            os.makedirs(ASSET_DIR, exist_ok=True)
+            _put("logo", a.LOGO)
+            if splash:
+                _put("splash", a.SPLASH)
+            _put("box_default", a.DEFAULT_BOX)
+            if th["modern"] and th.get("light"):
+                make_light_title(a.TITLE_MASK, th["stops"], 12 if anim else 1)
+            if th["modern"] and not th.get("light"):
+                glow = a.LOGO_GLOW
+                if anim:
+                    for i, g in enumerate(glow):
+                        _put("lg%d" % i, g)
+                else:
+                    _put("lg_static", glow[min(3, len(glow) - 1)])
+                fam = a.TITLE[th["title_set"]]
+                _put("tglow", fam["glow"])
+                for i, fr in enumerate(fam["frames"] if anim else fam["frames"][:1]):
+                    _put("f%02d" % i, fr)
+            seg = a.SEG[theme_key]
+            _put("seg_off", seg["off"])
+            for i, d_ in enumerate(seg["on"]):
+                _put("seg_on%d" % i, d_)
+            _put("pill", a.PILLS[theme_key]["off"])
+            _put("pill_g", a.PILLS[theme_key].get("grid") or a.PILLS[theme_key]["off"])
+            try:
+                make_byline(a.BYLINE_MASK, th)
+            except Exception as e:
+                dlog_error("byline: %s" % e)
+            try:
+                make_pill_texts(a.PILL_TEXT, th)
+            except Exception as e:
+                dlog_error("pill texts: %s" % e)
+        # ---- view specific pictures ----
         wanted = ("tile", "tile_bg") if view == "grid" else ("cats", "items")
         for kind, data in (a.SEL.get(theme_key) or {}).items():
             if kind in wanted:
                 _put("sel_%s_%s" % (kind, theme_key), data)
-        seg = a.SEG[theme_key]
-        _put("seg_off", seg["off"])
-        for i, d_ in enumerate(seg["on"]):
-            _put("seg_on%d" % i, d_)
         for size in ((64, 96) if view == "grid" else (48,)):
             for key, data in getattr(a, "ICONS%d" % size).items():
                 _put("ic%d_%s" % (size, key), data)
-        _put("pill", a.PILLS[theme_key]["off"])
-        _put("pill_g", a.PILLS[theme_key].get("grid") or a.PILLS[theme_key]["off"])
-        try:
-            make_byline(a.BYLINE_MASK, th)
-        except Exception as e:
-            dlog_error("byline: %s" % e)
-        try:
-            make_pill_texts(a.PILL_TEXT, th)
-        except Exception as e:
-            dlog_error("pill texts: %s" % e)
         with open(asset_path("plugin_square_frame"), "wb") as f:
             cols = th.get("stops") or _hex_rgb(ring_hex(th))
             f.write(frame_png(232, 160, cols, thickness=8) if view == "grid"      # مستطيل بانر
                     else square_frame_png(120, cols, thickness=6))
         if view == "grid":
             _put("emblem", a.EMBLEM[theme_key])
+        _assets_state["sig"] = sig
+        _assets_state["view"] = view
         ok = True
     except Exception as e:
+        _assets_state["sig"] = None
         dlog_error("prep_assets failed: %s" % e)
     del a
     release_assets()
@@ -1816,9 +1848,18 @@ class PanelBase(Screen):
 
     # ----------------------------- بدء التشغيل -------------------------------
     def start(self):
+        timing("panel start")
+        try:
+            prune_panel_notifs()
+        except Exception as e:
+            dlog_error("prune panel notification: %s" % e)
         if self.NO_NATIVE:
             noNativeKeys(self)
-        reset_installed_cache()
+        self.fromReopen = bool(_reopen.pop("keep", False))
+        if self.fromReopen:
+            _installed["upd"] = {}              # جرد النظام يبقى كما هو، وحالة التحديثات تُحسب من جديد
+        else:
+            reset_installed_cache()
         if self.pluginImageFrameWidget:
             frame = pix("plugin_square_frame")
             if frame:
@@ -1974,6 +2015,10 @@ class PanelBase(Screen):
             if cached:
                 self.shown = cached
                 self.setData(cached)
+                if getattr(self, "fromReopen", False) and time.time() - _online["ts"] < 300:
+                    self.fetching = False               # تم التحميل منذ دقائق: لا نعيده عند تبديل العرض فقط
+                    self.setServer("online")
+                    return
         self.setServer("connecting")
         d = deferToThread(load_online)
         d.addCallback(self.onlineOK)
@@ -2034,6 +2079,7 @@ class PanelBase(Screen):
         self.indexItems()
         self.noteSeen()
         self.buildView(keepCat)
+        timing("data shown")
         self.beginUpdateScan()
 
     def beginUpdateScan(self):
@@ -2108,8 +2154,13 @@ class PanelBase(Screen):
             if new_items:
                 self.cats.append((NEW_CAT, new_items))              # New أسفل All، تظهر فقط عند وجود إضافات جديدة
             if updates_enabled():
-                upd_items = prep([it for it in everything if update_available(it)])
+                toks = [(it, update_info(it)) for it in everything]
+                upd_items = prep([it for it, tok in toks if tok])
                 flush_installed_hashes()
+                try:                                                 # إشعارات تحديث لإضافات تم تحديثها: تُحذف تلقائياً
+                    prune_update_notifs(dict((item_key(it), tok) for it, tok in toks if tok))
+                except Exception as e:
+                    dlog_error("prune notifications: %s" % e)
                 if upd_items:
                     self.cats.append((UPD_CAT, upd_items))          # Updates: الإضافات المثبتة التي لها نسخة أحدث
             for c, items in self.allcats:
@@ -2310,6 +2361,7 @@ class PanelBase(Screen):
             _upd["started"] = False
             _upd["applied"] = False
             self.beginUpdateScan()                      # بعد 8 ثوانٍ وبأقل أولوية
+            self._bellN = None
         _ui["queue"][:] = [k for k in _ui["queue"] if k not in ran]
         try:
             self.updateButtons()
@@ -2908,7 +2960,7 @@ def background_plugin_updates(cats):
     this builds is dropped at the end, so nothing stays resident between the checks."""
     out = []
     if not updates_enabled() or _panel_open:
-        return out
+        return None                              # لم يُحسب شيء: لا إضافة ولا حذف
     try:
         st = _read_json(UPDATES_FILE, {})
         age = time.time() - float((st.get("ts", 0) if isinstance(st, dict) else 0) or 0)
@@ -2920,6 +2972,7 @@ def background_plugin_updates(cats):
             out.append((item_key(it), it["name"], tok))
     except Exception as e:
         dlog_error("background plugin updates: %s" % e)
+        out = None
     finally:
         reset_installed_cache()
         _upd["started"] = False                  # the panel will rescan by itself next time it opens
@@ -3071,6 +3124,33 @@ def remove_notifs(ids):
     ids = set(ids)
     d["items"] = [x for x in d["items"] if x["id"] not in ids]
     _notifs_save()
+
+
+def prune_update_notifs(valid):
+    """valid: {item key: update token} of the updates that are STILL pending. Removes the 'upd' notifications of
+    plugins that were updated (or removed) meanwhile, so the list cleans itself."""
+    gone = []
+    for x in _notifs_data()["items"]:
+        if x["type"] == "upd":
+            parts = x["id"].split(":", 2)                # upd : <item key> : <token>
+            if len(parts) == 3 and valid.get(parts[1]) != parts[2]:
+                gone.append(x["id"])
+    if gone:
+        remove_notifs(gone)
+    return len(gone)
+
+
+def prune_panel_notifs():
+    """Drops the 'panel update available' notification once the installed panel is that version or newer."""
+    gone = []
+    for x in _notifs_data()["items"]:
+        if x["type"] == "panel":
+            ver = x["id"].split(":", 1)[1] if ":" in x["id"] else ""
+            if not is_newer_version(ver, PLUGIN_VERSION):
+                gone.append(x["id"])
+    if gone:
+        remove_notifs(gone)
+    return len(gone)
 
 
 def add_update_notifs_raw(triples):
@@ -3598,7 +3678,11 @@ def _notification_result(result):
                       u"Major Enigma Panel V%s is available" % result["version"])
         for name in result.get("new_plugins") or []:
             add_notif("new:%s" % name.lower(), "new", name, u"New plugin | إضافة جديدة")
-        result["plugin_updates"] = add_update_notifs_raw(result.pop("updates", None) or [])
+        ups = result.pop("updates", None)
+        if ups is not None:                     # فُحصت الإضافات فعلاً: نضيف الجديد ونحذف ما تم تحديثه
+            result["plugin_updates"] = add_update_notifs_raw(ups)
+            prune_update_notifs(dict((k, tok) for k, _n, tok in ups))
+        prune_panel_notifs()
     except Exception as e:
         dlog_error("notification center: %s" % e)
     if _panel_open:
@@ -5812,6 +5896,8 @@ def onPanelClosed(session, result=None):
     global _panel_open
     if result == "reopen":
         # نترك للواجهة لحظة لتحرير الشاشة القديمة قبل بناء الجديدة (يخفف ذروة الذاكرة)
+        timing("reopen: old panel closed", reset=True)
+        _reopen["keep"] = True                  # نحتفظ بجرد الإضافات المثبتة: لا حاجة لإعادة مسح النظام
         gc.collect()
         tm = eTimer()
         try:
@@ -5819,7 +5905,7 @@ def onPanelClosed(session, result=None):
         except AttributeError:
             _relaunch["conn"] = tm.timeout.connect(lambda: _launch_after_panel_close(session))
         _relaunch["timer"] = tm
-        tm.start(350, True)
+        tm.start(120, True)
     else:
         _panel_open = False
         _show_pending_notifications()
@@ -5886,6 +5972,7 @@ def launch(session, splash=False):
     load_settings()
     show = bool(splash and _state["splash"])
     prep_assets(_state["theme"], _state["anim"], show, _state["view"])
+    timing("assets ready")
     if show:
         try:
             session.openWithCallback(lambda result=None: splashDone(session, result), SplashScreen)
