@@ -25,6 +25,7 @@ import threading
 import time
 import traceback
 import zlib
+from weakref import ref
 from urllib.request import Request, urlopen
 
 from enigma import (eConsoleAppContainer, eListboxPythonMultiContent, getDesktop, gFont,
@@ -1671,8 +1672,21 @@ class PanelBase(Screen):
         pass
 
     def loadPluginImages(self):
-        deferToThread(fetch_plugin_image_map).addCallbacks(
-            self.pluginImageMapLoaded, self.pluginImageMapFailed)
+        screen_ref = ref(self)
+
+        def loaded(image_map):
+            screen = screen_ref()
+            if screen is not None:
+                screen.pluginImageMapLoaded(image_map)
+            return None
+
+        def failed(failure):
+            screen = screen_ref()
+            if screen is not None:
+                screen.pluginImageMapFailed(failure)
+            return None
+
+        deferToThread(fetch_plugin_image_map).addCallbacks(loaded, failed)
 
     def defaultPluginPixmap(self):
         if self.posterPixmap is None:
@@ -1742,9 +1756,23 @@ class PanelBase(Screen):
         self.pluginImagePixmap = None
         self.posterPixmap = None
         self.setPluginPixmap(None)
-        deferToThread(fetch_plugin_image, url).addCallbacks(
-            lambda data: self.pluginImageDownloaded(data, key, token),
-            lambda failure: self.pluginImageFailedForItem(failure, key, token))
+        screen_ref = ref(self)
+
+        def downloaded(data):
+            screen = screen_ref()
+            if (screen is not None and not screen.closing
+                    and token == screen.pluginImageToken and key == screen.pluginImageKey):
+                screen.pluginImageDownloaded(data, key, token)
+            return None
+
+        def failed(failure):
+            screen = screen_ref()
+            if (screen is not None and not screen.closing
+                    and token == screen.pluginImageToken and key == screen.pluginImageKey):
+                screen.pluginImageFailedForItem(failure, key, token)
+            return None
+
+        deferToThread(fetch_plugin_image, url).addCallbacks(downloaded, failed)
 
     def pluginImageDownloaded(self, data, key, token):
         if self.closing or token != self.pluginImageToken or key != self.pluginImageKey:
@@ -1834,6 +1862,10 @@ class PanelBase(Screen):
 
     def freeMemory(self):
         """Release pictures and data as soon as the screen closes."""
+        self.pluginImageToken += 1
+        self.pluginImageKey = None
+        self.pluginImageMap = {}
+        self.pluginImageMapReady = False
         self.segPix = None
         self.titleFrames = []
         self.glowFrames = []
@@ -3666,7 +3698,19 @@ class PluginDescriptionScreen(Screen):
             ["OkCancelActions", "NumberActions"],
             {"cancel": self.close, "ok": self.close, "0": self.close}, -1)
         self.onLayoutFinish.append(self.showPluginImage)
-        self.onClose.append(lambda: release_actions(self["actions"]))
+        self.onClose.append(self.releaseImage)
+
+    def releaseImage(self):
+        release_actions(self["actions"])
+        try:
+            instance = self["p_image"].instance
+            if instance:
+                instance.hide()
+                instance.setPixmap(None)
+        except Exception as e:
+            dlog_error("description image cleanup: %s" % e)
+        self.imagePixmap = None
+        self.item = None
 
     def showPluginImage(self):
         pixmap = self.imagePixmap
@@ -5759,6 +5803,11 @@ class SplashScreen(Screen):
 _relaunch = {}
 
 
+def _launch_after_panel_close(session):
+    _relaunch.clear()
+    launch(session)
+
+
 def onPanelClosed(session, result=None):
     global _panel_open
     if result == "reopen":
@@ -5766,9 +5815,9 @@ def onPanelClosed(session, result=None):
         gc.collect()
         tm = eTimer()
         try:
-            tm.callback.append(lambda: launch(session))
+            tm.callback.append(lambda: _launch_after_panel_close(session))
         except AttributeError:
-            _relaunch["conn"] = tm.timeout.connect(lambda: launch(session))
+            _relaunch["conn"] = tm.timeout.connect(lambda: _launch_after_panel_close(session))
         _relaunch["timer"] = tm
         tm.start(350, True)
     else:
