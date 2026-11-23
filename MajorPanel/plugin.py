@@ -1631,6 +1631,8 @@ class PanelBase(Screen):
             "0": self.openDescription,
             "5": self.openDescription,
             "6": self.openNotifs,                       # مركز الإشعارات
+            "7": self.openRam,                          # مراقب الرام
+            "8": self.quickFreeRam,                     # تفريغ الرام فوراً
         }
         self["actions"] = ActionMap(ACTION_CONTEXTS, dict((k, safe(v)) for k, v in keys.items()), -1)
 
@@ -2413,6 +2415,14 @@ class PanelBase(Screen):
             setVisible(self["bell_n"], bool(n))
         except Exception as e:
             dlog_error("updateBell: %s" % e)
+
+    def openRam(self):
+        self.session.open(RamScreen)
+
+    def quickFreeRam(self):
+        before, after = free_ram()
+        self.flash(u"RAM released:  free %d -> %d MB    available %d -> %d MB" % (
+            before["free"], after["free"], before["avail"], after["avail"]))
 
     def openNotifs(self):
         self.session.openWithCallback(lambda *a: self.updateBell(), NotificationsScreen)
@@ -3815,8 +3825,8 @@ class PluginDescriptionScreen(Screen):
 
 
 class ListPanel(PanelBase):
-    HINT = ("LEFT/RIGHT : section   UP/DOWN : select   OK : install   1 : fav   2 : filter   3 : select   "
-            "4 : uninstall   0/5 : expand description   BLUE : refresh   MENU : settings   INFO : device info   6 : alerts")
+    HINT = ("LEFT/RIGHT : section   OK : install   1 : fav   2 : filter   3 : select   4 : uninstall   "
+            "0/5 : desc   6 : alerts   7 : RAM   8 : free RAM   BLUE : refresh   MENU : settings   INFO : info")
 
     def buildSkin(self):
         c = tc()
@@ -4035,8 +4045,8 @@ class GridPanel(PanelBase):
     so the screen has only a handful of widgets."""
     DEV = device_layout(125, 110)
     PIC = (1340, DEV["pic"][0], 510, 110)
-    HINT = ("ARROWS : move   UP/DOWN at the edge : section   OK : install   1 : fav   2 : filter   3 : select   "
-            "4 : uninstall   0/5 : expand description   BLUE : refresh   MENU : settings   INFO : device info   6 : alerts")
+    HINT = ("ARROWS : move   UP/DOWN edge : section   OK : install   1 : fav   2 : filter   3 : select   "
+            "4 : uninstall   0/5 : desc   6 : alerts   7 : RAM   8 : free RAM   BLUE : refresh   MENU : setup   INFO : info")
 
     def buildSkin(self):
         c = tc()
@@ -4380,8 +4390,8 @@ class GridPanel(PanelBase):
 # --------------------------------- شاشة الإعدادات -----------------------------
 SETTINGS_ROWS = ("view", "style", "color", "anim", "splash", "autoupdate", "updatecheck", "updatealert", "pkgrefresh",
                  "notifications", "mainmenu",
-                 "backupdir", "backup", "restore", "update")
-ACTION_ROWS = ("backup", "restore", "update")
+                 "backupdir", "backup", "restore", "ram", "update")
+ACTION_ROWS = ("backup", "restore", "ram", "update")
 
 
 def settings_sel_attr(w, h):
@@ -4497,6 +4507,7 @@ class SettingsScreen(Screen):
             ("Backup Location", backup_label(self.backupdir), True),
             ("Backup now", u"Run  \u25b6", True),
             ("Restore backup", u"Run  \u25b6", True),
+            ("RAM Monitor", u"Open  \u25b6", True),
             ("Update panel", u"Run  \u25b6", True),
         )
         rows = []
@@ -4593,6 +4604,8 @@ class SettingsScreen(Screen):
             self.doBackup()
         elif row == "restore":
             self.askRestore()
+        elif row == "ram":
+            self.session.open(RamScreen)
         else:
             self.save()
 
@@ -4653,6 +4666,432 @@ class SettingsScreen(Screen):
 
 
 # --------------------------------- مركز الإشعارات ---------------------------------
+# ============================ مراقب الرام ============================
+PROTECTED_PROCS = frozenset((
+    "enigma2", "init", "systemd", "systemd-journal", "systemd-udevd", "udevd", "dbus-daemon", "sshd", "dropbear",
+    "telnetd", "getty", "login", "busybox", "sh", "bash", "ash", "wpa_supplicant", "dhcpcd", "networkd", "connmand",
+    "syslogd", "klogd", "crond", "avahi-daemon", "ntpd", "rngd", "watchdog", "mount", "umount", "sync"))
+PROC_NOTES = {
+    "enigma2": u"Enigma2: the GUI and every plugin run inside this process",
+    "oscam": u"Softcam", "ncam": u"Softcam", "cccam": u"Softcam", "gbox": u"Softcam", "mgcamd": u"Softcam",
+    "wicardd": u"Softcam", "python3": u"Python script", "python": u"Python script", "wget": u"Download", "curl": u"Download",
+    "opkg": u"Package manager", "smbd": u"Samba server", "nmbd": u"Samba server", "vsftpd": u"FTP server",
+    "minidlna": u"Media server", "inadyn": u"Dynamic DNS",
+}
+TMP_JUNK = (".ipk", ".deb", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".zip", ".gz", ".bz2", ".xz", ".tmp", ".bak")
+
+
+def read_meminfo():
+    d = {}
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                k, _, v = line.partition(":")
+                try:
+                    d[k] = int(v.split()[0])
+                except (ValueError, IndexError):
+                    pass
+    except Exception:
+        pass
+    return d
+
+
+def ram_summary():
+    """All values in MB."""
+    m = read_meminfo()
+    total = m.get("MemTotal", 0)
+    free = m.get("MemFree", 0)
+    cache = m.get("Buffers", 0) + m.get("Cached", 0) + m.get("SReclaimable", 0)
+    avail = m.get("MemAvailable", free + cache)
+    tmp_mb = 0
+    try:
+        st = os.statvfs("/tmp")
+        tmp_mb = (st.f_blocks - st.f_bfree) * st.f_frsize // 1048576
+    except Exception:
+        pass
+    return {"total": total // 1024, "free": free // 1024, "avail": avail // 1024, "cache": cache // 1024,
+            "used": max(0, total - avail) // 1024, "shmem": m.get("Shmem", 0) // 1024,
+            "swap_total": m.get("SwapTotal", 0) // 1024,
+            "swap_used": max(0, m.get("SwapTotal", 0) - m.get("SwapFree", 0)) // 1024, "tmp": tmp_mb}
+
+
+def list_processes(limit=30):
+    """Processes grouped by name, biggest resident memory first. RSS counts shared pages in every process."""
+    groups = {}
+    try:
+        pids = [x for x in os.listdir("/proc") if x.isdigit()]
+    except Exception:
+        pids = []
+    for pid in pids:
+        name, rss = "", 0
+        try:
+            with open("/proc/%s/status" % pid) as f:
+                for line in f:
+                    if line.startswith("Name:"):
+                        name = line.split(None, 1)[1].strip()
+                    elif line.startswith("VmRSS:"):
+                        rss = int(line.split()[1])
+                        break
+        except Exception:
+            continue
+        if not name or rss <= 0:                           # خيوط النواة بلا ذاكرة مستخدم
+            continue
+        g = groups.setdefault(name, {"name": name, "rss": 0, "pids": [], "count": 0})
+        g["rss"] += rss
+        g["count"] += 1
+        g["pids"].append(int(pid))
+    out = sorted(groups.values(), key=lambda g: -g["rss"])[:limit]
+    for g in out:
+        g["mb"] = g["rss"] / 1024.0
+        g["note"] = PROC_NOTES.get(g["name"].lower(), u"")
+        g["protected"] = g["name"].lower() in PROTECTED_PROCS or os.getpid() in g["pids"] or 1 in g["pids"]
+        try:
+            with open("/proc/%d/cmdline" % max(g["pids"]), "rb") as f:
+                cmd = f.read().replace(b"\0", b" ").decode("utf-8", "ignore").strip()
+            if cmd and not g["note"]:
+                g["note"] = cmd[:90]
+        except Exception:
+            pass
+    return out
+
+
+def enigma_rss_mb():
+    try:
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return int(line.split()[1]) // 1024
+    except Exception:
+        pass
+    return 0
+
+
+def loaded_plugins(limit=40):
+    """Plugins loaded INSIDE Enigma2. Python plugins share the enigma2 process, so their real heap use cannot be
+    separated; this is an ESTIMATE from what each plugin really loaded: compiled code size + native libraries."""
+    rows = {}
+    pat = re.compile(r"/Plugins/([^/]+)/([^/]+)/")
+
+    def row(key, kind):
+        return rows.setdefault(key, {"name": key, "kind": kind, "mods": 0, "code": 0, "libs": 0})
+
+    for _n, mod in list(sys.modules.items()):
+        f = getattr(mod, "__file__", None) or ""
+        m = pat.search(f)
+        if not m:
+            continue
+        r = row(m.group(2), m.group(1))
+        r["mods"] += 1
+        try:
+            cached = getattr(mod, "__cached__", None)
+            r["code"] += os.path.getsize(cached if cached and os.path.isfile(cached) else f)
+        except Exception:
+            pass
+    try:                                                    # مكتبات native محمّلة فعلياً (Rss من smaps)
+        cur = ""
+        hdr = re.compile(r"^[0-9a-f]+-[0-9a-f]+\s+\S+\s+\S+\s+\S+\s+\S+\s*(.*)$")
+        with open("/proc/self/smaps") as f:
+            for line in f:
+                h = hdr.match(line)
+                if h:
+                    cur = h.group(1).strip()
+                elif line.startswith("Rss:") and "/Plugins/" in cur:
+                    m = pat.search(cur)
+                    if m:
+                        row(m.group(2), m.group(1))["libs"] += int(line.split()[1]) * 1024
+    except Exception:
+        pass
+    out = sorted(rows.values(), key=lambda r: -(r["code"] + r["libs"]))[:limit]
+    for r in out:
+        r["kb"] = (r["code"] + r["libs"]) / 1024.0
+    return out
+
+
+def free_ram():
+    """Safe RAM release: Python garbage, unused malloc heap, then the kernel page cache. Returns (before, after)."""
+    before = ram_summary()
+    gc.collect()
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)             # يُرجع ذاكرة الـ heap غير المستخدمة للنظام
+    except Exception:
+        pass
+    try:
+        os.sync()
+    except Exception:
+        pass
+    for path, val in (("/proc/sys/vm/drop_caches", "3\n"), ("/proc/sys/vm/compact_memory", "1\n")):
+        try:
+            with open(path, "w") as f:
+                f.write(val)
+        except Exception:
+            pass
+    return before, ram_summary()
+
+
+def tmp_candidates(min_age=600):
+    """Old download / archive leftovers in /tmp (these files live in RAM). Never touches recent files or our own."""
+    out = []
+    now = time.time()
+    for base in ("/tmp", "/var/volatile/tmp"):
+        try:
+            with os.scandir(base) as it:
+                for e in it:
+                    low = e.name.lower()
+                    if (not e.is_file(follow_symlinks=False) or low.startswith("majorpanel")
+                            or not low.endswith(TMP_JUNK)):
+                        continue
+                    st = e.stat(follow_symlinks=False)
+                    if now - st.st_mtime >= min_age:
+                        out.append((e.path, st.st_size))
+        except Exception:
+            continue
+    return out
+
+
+def clean_tmp(files):
+    freed = 0
+    for path, size in files:
+        try:
+            os.remove(path)
+            freed += size
+        except Exception:
+            pass
+    return freed
+
+
+def stop_group(group):
+    """SIGTERM every pid of a non-protected process group. Returns how many were signalled."""
+    import signal
+    if group.get("protected"):
+        return 0
+    n = 0
+    for pid in group["pids"]:
+        if pid in (1, os.getpid()):
+            continue
+        try:
+            os.kill(pid, signal.SIGTERM)
+            n += 1
+        except Exception:
+            pass
+    return n
+
+
+def ram_skin():
+    c = tc()
+    parts = [
+        '<screen name="MajorPanelRam" position="0,0" size="%d,%d" flags="wfNoBorder" backgroundColor="%s">' % (_W, _H, c["bg"]),
+        box((0, 0, 1920, 110), c["card"]),
+        '<eLabel position="0,%d" size="%d,%d" backgroundColor="%s" zPosition="1"/>' % (s(106), _W, max(2, s(4)), c["hdr"]),
+        wid("r_title", (60, 20, 1100, 70), font=46, fg=c["hi"], valign="center"),
+        wid("r_tab", (1100, 20, 760, 70), font=28, fg=c["muted"], halign="right", valign="center"),
+        box((160, 125, 1600, 820), c["card"], 24),
+        wid("r_sum1", (190, 140, 1540, 44), font=30, fg=c["text"], valign="center", z=3),
+        wid("r_sum2", (190, 186, 1540, 36), font=24, fg=c["second"], valign="center", z=3),
+        box((190, 230, 1540, 16), c["card2"], 8, z=2),
+        '<widget name="r_bar" %s backgroundColor="%s" cornerRadius="%d" zPosition="3"/>' % (
+            rect(190, 230, 10, 16), c["acc"], s(8)),
+        '<widget name="rows" %s backgroundColor="%s" backgroundColorSelected="%s" foregroundColor="%s" '
+        'foregroundColorSelected="#FFFFFF" scrollbarMode="showNever"%s transparent="0" zPosition="2"/>' % (
+            rect(190, 262, 1540, 672), c["card"], c["card"], c["text"], notif_sel_attr(1540, 64)),
+    ]
+    for name, x, w, col in (("key_red", 40, 440, c["red"]), ("key_green", 500, 440, c["green"]),
+                            ("key_yellow", 960, 440, c["yellow"]), ("key_blue", 1420, 460, c["blue"])):
+        parts.append('<widget name="%s" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" '
+                     'cornerRadius="%d" halign="center" valign="center" zPosition="2"/>' % (
+                         name, rect(x, 955, w, 66), s(30), col, s(16)))
+    parts += [wid("hint", (40, 1030, 1840, 40), font=22, fg=c["omuted"], bg=c["bg"], halign="center", valign="center"),
+              '</screen>']
+    return "\n".join(parts)
+
+
+class RamScreen(Screen):
+    def __init__(self, session):
+        self.t = T()
+        self.skin = ram_skin()
+        Screen.__init__(self, session)
+        self.mode = "proc"
+        self.entries = []
+        self["r_title"] = Label(u"مراقب الرام | RAM Monitor")
+        self["r_tab"] = Label("")
+        self["r_sum1"] = Label("")
+        self["r_sum2"] = Label("")
+        self["r_bar"] = Label("")
+        self["rows"] = MenuList([], enableWrapAround=True, content=eListboxPythonMultiContent)
+        self["rows"].l.setFont(0, gFont("Regular", s(30)))
+        self["rows"].l.setFont(1, gFont("Regular", s(20)))
+        self["rows"].l.setFont(2, gFont("Regular", s(28)))
+        self["rows"].l.setItemHeight(s(64))
+        self["key_red"] = Label(u"تنظيف /tmp | Clean /tmp")
+        self["key_green"] = Label(u"تفريغ الرام | Free RAM")
+        self["key_yellow"] = Label(u"عمليات / بلجنات | View")
+        self["key_blue"] = Label(u"إعادة تشغيل الواجهة | Restart GUI")
+        self["hint"] = Label(u"OK : stop the selected process     EXIT : close")
+        self["actions"] = ActionMap(
+            ["OkCancelActions", "ColorActions", "DirectionActions"],
+            {"ok": self.ok, "green": self.doFree, "red": self.askTmp, "yellow": self.toggleView,
+             "blue": self.askRestart, "cancel": self.close, "up": self.up, "down": self.down,
+             "left": self.up, "right": self.down}, -1)
+        self.timer = eTimer()
+        try:
+            self.timer.callback.append(self.refresh)
+        except AttributeError:
+            self._conn = self.timer.timeout.connect(self.refresh)
+        self.onLayoutFinish.append(self.start)
+        self.onClose.append(self.release)
+
+    def release(self):
+        try:
+            self.timer.stop()
+            del self.timer.callback[:]
+        except Exception:
+            pass
+        release_actions(self["actions"])
+
+    def start(self):
+        self.refresh()
+        self.timer.start(4000, False)
+
+    def up(self):
+        self["rows"].up()
+
+    def down(self):
+        self["rows"].down()
+
+    def drawSummary(self):
+        m = ram_summary()
+        total = max(1, m["total"])
+        self["r_sum1"].setText(u"RAM  total %d MB    used %d MB    available %d MB    free %d MB" % (
+            m["total"], m["used"], m["avail"], m["free"]))
+        self["r_sum2"].setText(u"cache %d MB    swap %d/%d MB    /tmp %d MB (in RAM)    Enigma2 %d MB" % (
+            m["cache"], m["swap_used"], m["swap_total"], m["tmp"], enigma_rss_mb()))
+        try:
+            w = max(s(10), int(s(1540) * min(1.0, m["used"] / float(total))))
+            self["r_bar"].instance.resize(eSize(w, s(16)))
+        except Exception:
+            pass
+
+    def refresh(self):
+        try:
+            if getattr(self, "_fastTicks", 0):
+                self._fastTicks -= 1
+                if not self._fastTicks:
+                    self.timer.start(4000, False)
+            self.drawSummary()
+            c = tc()
+            txt, sec, mut = hexint(c["text"]), hexint(c["second"]), hexint(c["muted"])
+            barc = hexint(c["acc"])
+            rows = []
+            if self.mode == "proc":
+                self.entries = list_processes(14)
+                top = max([e["mb"] for e in self.entries] or [1.0])
+                self["r_tab"].setText(u"Processes   (RSS: shared pages are counted in each process)")
+                for e in self.entries:
+                    label = e["name"] + (u"  x%d" % e["count"] if e["count"] > 1 else u"")
+                    note = (u"protected  |  " if e["protected"] else u"") + (e["note"] or u"")
+                    value = u"%.1f MB" % e["mb"]
+                    frac = e["mb"] / top
+                    rows.append(self.row(label, note, value, frac, txt, sec, mut, barc))
+            else:
+                self.entries = loaded_plugins(14)
+                top = max([e["kb"] for e in self.entries] or [1.0])
+                self["r_tab"].setText(u"Plugins loaded in Enigma2   (estimate: code + native libraries)")
+                for e in self.entries:
+                    note = u"%s  |  %d modules  |  code %d KB  |  libs %d KB" % (
+                        e["kind"], e["mods"], e["code"] // 1024, e["libs"] // 1024)
+                    value = u"%.0f KB" % e["kb"] if e["kb"] < 1024 else u"%.1f MB" % (e["kb"] / 1024.0)
+                    rows.append(self.row(e["name"], note, value, e["kb"] / top, txt, sec, mut, barc))
+            keep = self["rows"].getSelectionIndex()
+            self["rows"].setList(rows)
+            if rows:
+                self["rows"].moveToIndex(min(keep, len(rows) - 1))
+        except Exception as e:
+            dlog_error("ram screen: %s" % e)
+
+    def row(self, label, note, value, frac, txt, sec, mut, barc):
+        bw = max(s(6), int(s(260) * max(0.0, min(1.0, frac))))
+        return [label,
+                MultiContentEntryText(pos=(s(20), s(4)), size=(s(840), s(34)), font=0,
+                                      flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=label, color=txt, color_sel=selfg()),
+                MultiContentEntryText(pos=(s(20), s(36)), size=(s(1000), s(24)), font=1,
+                                      flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=note, color=sec, color_sel=selsub()),
+                MultiContentEntryText(pos=(s(1040), s(24)), size=(bw, s(14)), font=1, text="", backcolor=barc,
+                                      backcolor_sel=barc),
+                MultiContentEntryText(pos=(s(1320), s(10)), size=(s(200), s(44)), font=2,
+                                      flags=RT_HALIGN_RIGHT | RT_VALIGN_CENTER, text=value, color=txt,
+                                      color_sel=selfg())]
+
+    def current(self):
+        idx = self["rows"].getSelectionIndex()
+        return self.entries[idx] if 0 <= idx < len(self.entries) else None
+
+    def toggleView(self):
+        self.mode = "plugins" if self.mode == "proc" else "proc"
+        self["hint"].setText(u"OK : stop the selected process     EXIT : close" if self.mode == "proc"
+                             else u"OK : details     EXIT : close")
+        self.refresh()
+        self["rows"].moveToIndex(0)
+
+    def ok(self):
+        e = self.current()
+        if not e:
+            return
+        if self.mode == "plugins":
+            self.session.open(MessageBox, u"%s  (%s)\n\n%d modules loaded\nCompiled code: %d KB\nNative libraries in RAM: %d KB\n\n"
+                              u"Python plugins share the enigma2 process: this is an estimate, not an exact heap size." % (
+                                  e["name"], e["kind"], e["mods"], e["code"] // 1024, e["libs"] // 1024),
+                              MessageBox.TYPE_INFO)
+            return
+        if e["protected"]:
+            self.session.open(MessageBox, u"%s is a protected system process and cannot be stopped from here.\n"
+                              u"Use 'Restart GUI' to release Enigma2 memory." % e["name"], MessageBox.TYPE_INFO, timeout=6)
+            return
+        self._target = e
+        ask(self.session, self.confirmStop,
+            u"إيقاف %s (%d عملية، %.1f MB)؟\nStop %s (%d process(es), %.1f MB)?\n\n"
+            u"If it is a softcam, the channels it decodes will stop until it is started again." % (
+                e["name"], e["count"], e["mb"], e["name"], e["count"], e["mb"]), default=False, warn=True)
+
+    def confirmStop(self, answer):
+        if answer:
+            stop_group(self._target)
+            self._fastTicks = 2                          # قراءتان سريعتان لنرى أثر الإيقاف ثم نعود للإيقاع العادي
+            self.timer.start(1500, False)
+
+    def doFree(self):
+        before, after = free_ram()
+        self.session.open(MessageBox, u"تم تفريغ الذاكرة المؤقتة\nRAM released\n\nFree: %d -> %d MB\nAvailable: %d -> %d MB\n"
+                          u"Cache: %d -> %d MB" % (before["free"], after["free"], before["avail"], after["avail"],
+                                                   before["cache"], after["cache"]), MessageBox.TYPE_INFO, timeout=8)
+        self.refresh()
+
+    def askTmp(self):
+        files = tmp_candidates()
+        if not files:
+            self.session.open(MessageBox, u"لا توجد ملفات مؤقتة قديمة في /tmp\nNo old download / archive files in /tmp.",
+                              MessageBox.TYPE_INFO, timeout=6)
+            return
+        self._tmp = files
+        total = sum(sz for _p, sz in files) / 1048576.0
+        ask(self.session, self.confirmTmp, u"حذف %d ملفاً قديماً من /tmp (%.1f MB)؟\nDelete %d old file(s) from /tmp (%.1f MB)?\n"
+            u"(.ipk .zip .tar.gz ... older than 10 minutes)" % (len(files), total, len(files), total), default=False)
+
+    def confirmTmp(self, answer):
+        if answer:
+            freed = clean_tmp(self._tmp)
+            self.session.open(MessageBox, u"تم تحرير %.1f MB\nFreed %.1f MB" % (freed / 1048576.0, freed / 1048576.0),
+                              MessageBox.TYPE_INFO, timeout=5)
+            self.refresh()
+
+    def askRestart(self):
+        ask(self.session, self.confirmRestart, u"إعادة تشغيل الواجهة؟ يحرر كل ذاكرة Enigma2.\nRestart the GUI? This releases all "
+            u"Enigma2 memory.", default=False, warn=True)
+
+    def confirmRestart(self, answer):
+        if answer:
+            self.session.open(TryQuitMainloop, 3)
+
+
 def notif_sel_attr(w, h):
     t = T()
     try:
