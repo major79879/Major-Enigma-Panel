@@ -2811,7 +2811,7 @@ def cmd_hash(it):
     return hashlib.md5((it.get("cmd") or "").encode("utf-8", "ignore")).hexdigest()[:12]
 
 
-def _scan_upgradable(refresh=False):
+def _scan_upgradable():
     """Thread: refreshes the opkg lists (at most every 12 h) and reads `opkg list-upgradable`."""
     names = set()
     vers = {}
@@ -2820,13 +2820,6 @@ def _scan_upgradable(refresh=False):
         st = st if isinstance(st, dict) else {}
         now = time.time()
         low = ["nice", "-n", "19"] if shutil.which("nice") else []          # أقل أولوية: لا يبطّئ الواجهة
-        if refresh and now - float(st.get("update_ts", 0) or 0) > 12 * 3600:
-            try:                                                           # تحميل قوائم الحزم: فقط من المراقب الخلفي
-                subprocess.run(low + ["opkg", "update"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                               timeout=120)
-            except Exception:
-                pass
-            st["update_ts"] = now
         r = subprocess.run(low + ["opkg", "list-upgradable"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                            timeout=60)
         for line in r.stdout.decode("utf-8", "ignore").splitlines():
@@ -2846,6 +2839,50 @@ def _scan_upgradable(refresh=False):
     _upd["done"] = True
     _upd["busy"] = False
     _upd["applied"] = False
+
+
+def mem_available_mb():
+    """Free RAM in MB (MemAvailable, or free + cached on old kernels); 9999 when unknown."""
+    try:
+        vals = {}
+        with open("/proc/meminfo") as f:
+            for line in f:
+                k, _, v = line.partition(":")
+                if k in ("MemAvailable", "MemFree", "Cached"):
+                    vals[k] = int(v.split()[0])
+        if "MemAvailable" in vals:
+            return vals["MemAvailable"] // 1024
+        return (vals.get("MemFree", 0) + vals.get("Cached", 0)) // 1024
+    except Exception:
+        return 9999
+
+
+def background_plugin_updates(cats):
+    """Worker thread (panel closed): [(key, name, token)] of installed plugins that have an update.
+    Light by design: opkg is asked at most once a day and only when there is enough free RAM, and every cache
+    this builds is dropped at the end, so nothing stays resident between the checks."""
+    out = []
+    if not updates_enabled() or _panel_open:
+        return out
+    try:
+        st = _read_json(UPDATES_FILE, {})
+        age = time.time() - float((st.get("ts", 0) if isinstance(st, dict) else 0) or 0)
+        if age > 24 * 3600 and mem_available_mb() >= 100:
+            _scan_upgradable()
+        else:
+            load_update_cache()
+        for it, tok in compute_plugin_updates(cats):
+            out.append((item_key(it), it["name"], tok))
+    except Exception as e:
+        dlog_error("background plugin updates: %s" % e)
+    finally:
+        reset_installed_cache()
+        _upd["started"] = False                  # the panel will rescan by itself next time it opens
+        _upd["loaded"] = False
+        _upd["pkgs"] = set()
+        _upd["vers"] = {}
+        _upd["snap"] = None
+    return out
 
 
 def load_update_cache():
@@ -2893,13 +2930,14 @@ def update_info(it):
     try:
         if installed_checker()(it):
             db = load_installed()
-            dirs, pkgs, _names = system_state()
-            rec = db["items"].get(key)
-            plist = removable_pkgs(rec) if rec else discover_plugin(it, dirs, pkgs)[1]
-            for p in plist:
-                if p in _upd["pkgs"]:
-                    tok = "pkg:%s:%s" % (p, _upd["vers"].get(p, ""))
-                    break
+            if _upd["pkgs"]:                    # لا يوجد حزم قابلة للترقية: نتجاوز البحث عن حزم الإضافة
+                dirs, pkgs, _names = system_state()
+                rec = db["items"].get(key)
+                plist = removable_pkgs(rec) if rec else discover_plugin(it, dirs, pkgs)[1]
+                for p in plist:
+                    if p in _upd["pkgs"]:
+                        tok = "pkg:%s:%s" % (p, _upd["vers"].get(p, ""))
+                        break
             cur = cmd_hash(it)
             old = db["hashes"].get(key)
             if old is None:
@@ -2988,6 +3026,15 @@ def remove_notifs(ids):
     ids = set(ids)
     d["items"] = [x for x in d["items"] if x["id"] not in ids]
     _notifs_save()
+
+
+def add_update_notifs_raw(triples):
+    """triples: [(item key, name, token)] -> notifications; returns the names that were really new."""
+    fresh = []
+    for key, name, tok in triples:
+        if add_notif("upd:%s:%s" % (key, tok), "upd", name, u"A newer version is available | يتوفر إصدار أحدث"):
+            fresh.append(name)
+    return fresh
 
 
 def add_update_notifs(pairs):
@@ -3412,7 +3459,13 @@ def check_background_notifications():
     if not re.match(r"^[0-9]+(?:\.[0-9]+)*$", remote_version):
         raise ValueError("bad remote version")
     command_text = _fetch(COMMANDS_URL, timeout=8)
-    remote_keys, remote_names = _plugin_keys_from_commands(command_text)
+    if "+++" not in command_text:
+        raise ValueError("bad command list")
+    cats = parse_commands(command_text)                 # مرة واحدة فقط
+    remote_names = plugin_names_by_key(cats)
+    if not remote_names:
+        raise ValueError("command list contains no plugins")
+    remote_keys = set(remote_names)
 
     previous = _read_json(NOTIFICATION_STATE_FILE, None)
     if isinstance(previous, dict) and isinstance(previous.get("plugins"), list):
@@ -3434,19 +3487,14 @@ def check_background_notifications():
             "plugins": sorted(remote_keys),
     }):
         raise IOError("could not save notification state")
-    cats = []
-    if updates_enabled():
-        try:
-            cats = parse_commands(command_text)
-            _scan_upgradable(refresh=True)          # opkg: الحزم القابلة للترقية (في الخيط الخلفي، والبانل مغلق)
-        except Exception as e:
-            dlog_error("background update scan: %s" % e)
+    updates = background_plugin_updates(cats)
+    del cats
     return {
         "version": remote_version,
         "update": update_available,
         "update_pending": update_pending,
         "new_plugins": [remote_names[key] for key in new_keys if remote_names.get(key)],
-        "cats": cats,
+        "updates": updates,
     }
 
 
@@ -3505,7 +3553,7 @@ def _notification_result(result):
                       u"Major Enigma Panel V%s is available" % result["version"])
         for name in result.get("new_plugins") or []:
             add_notif("new:%s" % name.lower(), "new", name, u"New plugin | إضافة جديدة")
-        result["plugin_updates"] = add_update_notifs(compute_plugin_updates(result.pop("cats", None) or []))
+        result["plugin_updates"] = add_update_notifs_raw(result.pop("updates", None) or [])
     except Exception as e:
         dlog_error("notification center: %s" % e)
     if _panel_open:
