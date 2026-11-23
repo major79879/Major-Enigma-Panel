@@ -101,7 +101,8 @@ PLUGIN_IMAGE_CACHE_PATH = os.path.join(ASSET_DIR, "plugin_image.png")
 NOTIFICATION_INTERVAL_MS = 6 * 60 * 60 * 1000
 NEW_CAT = "New"                                              # اسم قائمة الإضافات الجديدة (تظهر أسفل All)
 DEFAULT_SETTINGS = {"view": "list", "theme": "blue_fire", "anim": False, "mainmenu": True, "splash": True,
-                    "autoupdate": True, "notifications": True, "updatecheck": True, "backupdir": "", "updatealert": True}
+                    "autoupdate": True, "notifications": True, "updatecheck": True, "backupdir": "", "updatealert": True,
+                    "pkgrefresh": True}
 # ============================================================================
 
 # ---- مصدر واحد لتعريف الثيمات (يُستخدم في plugin.py وفي توليد الصور) ----
@@ -594,13 +595,16 @@ def load_settings():
     _state["notifications"] = bool(data.get("notifications", DEFAULT_SETTINGS["notifications"]))
     _state["updatecheck"] = bool(data.get("updatecheck", DEFAULT_SETTINGS["updatecheck"]))
     _state["updatealert"] = bool(data.get("updatealert", DEFAULT_SETTINGS["updatealert"]))
+    _state["pkgrefresh"] = bool(data.get("pkgrefresh", DEFAULT_SETTINGS["pkgrefresh"]))
     bdir = data.get("backupdir", "")
     _state["backupdir"] = bdir if isinstance(bdir, str) and bdir.startswith("/") else ""
     return _state
 
 
 def save_settings(theme, anim=False, mainmenu=True, splash=True, view="list", autoupdate=True, notifications=True,
-                  updatecheck=None, backupdir=None, updatealert=None):
+                  updatecheck=None, backupdir=None, updatealert=None, pkgrefresh=None):
+    if pkgrefresh is None:
+        pkgrefresh = _state.get("pkgrefresh", True)
     if updatealert is None:
         updatealert = _state.get("updatealert", True)
     if updatecheck is None:
@@ -612,8 +616,9 @@ def save_settings(theme, anim=False, mainmenu=True, splash=True, view="list", au
             json.dump({"view": view, "theme": theme, "anim": bool(anim), "mainmenu": bool(mainmenu), "splash": bool(splash),
                        "autoupdate": bool(autoupdate), "notifications": bool(notifications),
                        "updatecheck": bool(updatecheck), "backupdir": backupdir or "",
-                       "updatealert": bool(updatealert)}, f)
+                       "updatealert": bool(updatealert), "pkgrefresh": bool(pkgrefresh)}, f)
         _state["updatealert"] = bool(updatealert)
+        _state["pkgrefresh"] = bool(pkgrefresh)
         _state["notifications"] = bool(notifications)
         _state["updatecheck"] = bool(updatecheck)
         _state["backupdir"] = backupdir or ""
@@ -2820,6 +2825,14 @@ def _scan_upgradable():
         st = st if isinstance(st, dict) else {}
         now = time.time()
         low = ["nice", "-n", "19"] if shutil.which("nice") else []          # أقل أولوية: لا يبطّئ الواجهة
+        if (_state.get("pkgrefresh", True) and now - float(st.get("update_ts", 0) or 0) > 24 * 3600
+                and mem_available_mb() >= 100):
+            try:                                    # تحديث قوائم الحزم كي يكون كشف تحديثات الحزم دقيقاً
+                subprocess.run(low + ["opkg", "update"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                               timeout=120)
+            except Exception:
+                pass
+            st["update_ts"] = now                   # مرة كل 24 ساعة فقط، حتى لو فشل (لا نعيد المحاولة فوراً)
         r = subprocess.run(low + ["opkg", "list-upgradable"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                            timeout=60)
         for line in r.stdout.decode("utf-8", "ignore").splitlines():
@@ -4237,8 +4250,8 @@ class GridPanel(PanelBase):
 
 
 # --------------------------------- شاشة الإعدادات -----------------------------
-SETTINGS_ROWS = ("view", "style", "color", "anim", "splash", "autoupdate", "updatecheck", "updatealert", "notifications",
-                 "mainmenu",
+SETTINGS_ROWS = ("view", "style", "color", "anim", "splash", "autoupdate", "updatecheck", "updatealert", "pkgrefresh",
+                 "notifications", "mainmenu",
                  "backupdir", "backup", "restore", "update")
 ACTION_ROWS = ("backup", "restore", "update")
 
@@ -4277,7 +4290,7 @@ def settings_skin():
                      'transparent="0" zPosition="2"/>' % (i, rect(400 + i * 220, 807, 190, 60), c["card2"], s(14),
                                                           max(1, s(2)), c["line"]))
     parts += [
-        wid("s_note", (390, 868, 1140, 84), font=16, fg=c["muted"], valign="center"),
+        wid("s_note", (390, 862, 1140, 92), font=16, fg=c["muted"], valign="center"),
         '<widget name="key_red" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
         'halign="center" valign="center" zPosition="2"/>' % (rect(500, 955, 440, 66), s(30), c["red"], s(16)),
         '<widget name="key_green" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
@@ -4303,6 +4316,7 @@ class SettingsScreen(Screen):
         self.notifications = st["notifications"]
         self.updatecheck = st["updatecheck"]
         self.updatealert = st["updatealert"]
+        self.pkgrefresh = st["pkgrefresh"]
         self.backupdir = st["backupdir"] or backup_locations()[0][0]
         self.orig = self.orig + (self.updatecheck,)
         cur = st["theme"] if st["theme"] in THEMES else MODERN_ORDER[0]
@@ -4320,6 +4334,7 @@ class SettingsScreen(Screen):
             self["sw%d" % i] = Label("")
         self["s_note"] = Label(u"Check Plugin Updates: marks installed plugins that have a newer version ('Updates' section).\n"
                                u"Plugin Update Alerts: shows a message on screen (panel closed) when plugins have updates.\n"
+                               u"Package Updates (opkg): refreshes the package lists once a day to detect updated packages.\n"
                                u"Backup: saves settings, favorites and install records to the chosen location.\n"
                                u"Notifications: every 6 hours (needs Background Notifications).  Save: apply.")
         self["key_red"] = Label(u"إلغاء | Cancel")
@@ -4348,6 +4363,7 @@ class SettingsScreen(Screen):
             ("Auto Check Update", "On" if self.autoupdate else "Off", True),
             ("Check Plugin Updates", "On" if self.updatecheck else "Off", True),
             ("Plugin Update Alerts", "On" if self.updatealert else "Off", True),
+            ("Package Updates (opkg)", "On" if self.pkgrefresh else "Off", True),
             ("Background Notifications", "On" if self.notifications else "Off", True),
             ("Main Menu", "Show" if self.mainmenu else "Hide", True),
             ("Backup Location", backup_label(self.backupdir), True),
@@ -4413,6 +4429,8 @@ class SettingsScreen(Screen):
             self.updatecheck = not self.updatecheck
         elif row == "updatealert":
             self.updatealert = not self.updatealert
+        elif row == "pkgrefresh":
+            self.pkgrefresh = not self.pkgrefresh
         elif row == "notifications":
             self.notifications = not self.notifications
         elif row == "mainmenu":
@@ -4497,7 +4515,7 @@ class SettingsScreen(Screen):
         if self.updatecheck:
             _upd["started"] = False
         save_settings(theme, self.anim, self.mainmenu, self.splash, self.view, self.autoupdate, self.notifications,
-                      self.updatecheck, self.backupdir, self.updatealert)
+                      self.updatecheck, self.backupdir, self.updatealert, self.pkgrefresh)
         configure_notification_monitor()
         self.close(changed)
 
