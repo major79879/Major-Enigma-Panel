@@ -35,6 +35,10 @@ from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.MenuList import MenuList
 from Components.MultiContent import MultiContentEntryPixmapAlphaBlend, MultiContentEntryText
+try:
+    from Components.MultiContent import MultiContentEntryProgress
+except ImportError:                                       # صور قديمة بلا عنصر Progress
+    MultiContentEntryProgress = None
 from Components.Pixmap import Pixmap
 from Plugins.Plugin import PluginDescriptor
 from Screens.ChoiceBox import ChoiceBox
@@ -5102,14 +5106,22 @@ class RamScreen(Screen):
             dlog_error("ram screen: %s" % e)
 
     def row(self, label, note, value, frac, txt, sec, mut, barc):
-        bw = max(s(6), int(s(260) * max(0.0, min(1.0, frac))))
+        frac = max(0.0, min(1.0, frac))
+        if MultiContentEntryProgress is not None:
+            # عنصر Progress يُرسم فوق مؤشر الـ select ويقبل لوناً خاصاً بالصف المحدد (النص بخلفية يختفي خلفه)
+            track = hexint(tc()["line"])
+            bar = MultiContentEntryProgress(pos=(s(1040), s(24)), size=(s(260), s(14)), percent=max(3, int(frac * 100)),
+                                            borderWidth=0, foreColor=barc, foreColorSelected=selfg(),
+                                            backColor=track, backColorSelected=track)
+        else:
+            bar = MultiContentEntryText(pos=(s(1040), s(24)), size=(max(s(6), int(s(260) * frac)), s(14)), font=1,
+                                        text="", backcolor=barc, backcolor_sel=barc)
         return [label,
                 MultiContentEntryText(pos=(s(20), s(4)), size=(s(840), s(34)), font=0,
                                       flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=label, color=txt, color_sel=selfg()),
                 MultiContentEntryText(pos=(s(20), s(36)), size=(s(1000), s(24)), font=1,
                                       flags=RT_HALIGN_LEFT | RT_VALIGN_CENTER, text=note, color=sec, color_sel=selsub()),
-                MultiContentEntryText(pos=(s(1040), s(24)), size=(bw, s(14)), font=1, text="", backcolor=barc,
-                                      backcolor_sel=barc),
+                bar,
                 MultiContentEntryText(pos=(s(1320), s(10)), size=(s(200), s(44)), font=2,
                                       flags=RT_HALIGN_RIGHT | RT_VALIGN_CENTER, text=value, color=txt,
                                       color_sel=selfg())]
