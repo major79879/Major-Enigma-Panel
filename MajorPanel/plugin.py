@@ -84,7 +84,7 @@ TITLE = "Major Enigma Panel"
 CREDIT = "By John Kamel"
 # تحديث البانل نفسه (إعادة التثبيت) - ملف installer.sh موجود في جذر المستودع (خارج مجلد MajorPanel)
 INSTALLER_URL = GITHUB_RAW + "/installer.sh"
-PLUGIN_VERSION = "4.2"                                        # رقم إصدار هذه النسخة (يظهر V12) - غيّره مع كل إصدار
+PLUGIN_VERSION = "4.3"                                        # رقم إصدار هذه النسخة (يظهر V12) - غيّره مع كل إصدار
 VERSION_URL = GITHUB_RAW + "/Version.txt"                    # ملف الإصدار على GitHub: يحوي رقماً فقط مثل 12
 PLUGIN_IMAGES_URL = GITHUB_RAW + "/MajorPanel/pluginImages.json"
 UPDATE_CMD = 'wget -q --no-check-certificate -O - "%s" | /bin/sh -s norestart' % INSTALLER_URL
@@ -101,9 +101,11 @@ DEFAULT_POSTER_PATH = os.path.join(PLUGIN_DIR, "poster.png")
 PLUGIN_IMAGE_CACHE_PATH = os.path.join(ASSET_DIR, "plugin_image.png")
 NOTIFICATION_INTERVAL_MS = 6 * 60 * 60 * 1000
 NEW_CAT = "New"                                              # اسم قائمة الإضافات الجديدة (تظهر أسفل All)
+AUTORAM_MODES = ("off", "low", "30min")
+AUTORAM_LABELS = {"off": "Off", "low": "When low", "30min": "Every 30 min"}
 DEFAULT_SETTINGS = {"view": "list", "theme": "blue_fire", "anim": False, "mainmenu": True, "splash": True,
                     "autoupdate": True, "notifications": True, "updatecheck": True, "backupdir": "", "updatealert": True,
-                    "pkgrefresh": True}
+                    "pkgrefresh": True, "autoram": "off"}
 # ============================================================================
 
 # ---- مصدر واحد لتعريف الثيمات (يُستخدم في plugin.py وفي توليد الصور) ----
@@ -597,13 +599,19 @@ def load_settings():
     _state["updatecheck"] = bool(data.get("updatecheck", DEFAULT_SETTINGS["updatecheck"]))
     _state["updatealert"] = bool(data.get("updatealert", DEFAULT_SETTINGS["updatealert"]))
     _state["pkgrefresh"] = bool(data.get("pkgrefresh", DEFAULT_SETTINGS["pkgrefresh"]))
+    mode = data.get("autoram", "off")
+    _state["autoram"] = mode if mode in AUTORAM_MODES else "off"
     bdir = data.get("backupdir", "")
     _state["backupdir"] = bdir if isinstance(bdir, str) and bdir.startswith("/") else ""
     return _state
 
 
 def save_settings(theme, anim=False, mainmenu=True, splash=True, view="list", autoupdate=True, notifications=True,
-                  updatecheck=None, backupdir=None, updatealert=None, pkgrefresh=None):
+                  updatecheck=None, backupdir=None, updatealert=None, pkgrefresh=None, autoram=None):
+    if autoram is None:
+        autoram = _state.get("autoram", "off")
+    if autoram not in AUTORAM_MODES:
+        autoram = "off"
     if pkgrefresh is None:
         pkgrefresh = _state.get("pkgrefresh", True)
     if updatealert is None:
@@ -617,9 +625,10 @@ def save_settings(theme, anim=False, mainmenu=True, splash=True, view="list", au
             json.dump({"view": view, "theme": theme, "anim": bool(anim), "mainmenu": bool(mainmenu), "splash": bool(splash),
                        "autoupdate": bool(autoupdate), "notifications": bool(notifications),
                        "updatecheck": bool(updatecheck), "backupdir": backupdir or "",
-                       "updatealert": bool(updatealert), "pkgrefresh": bool(pkgrefresh)}, f)
+                       "updatealert": bool(updatealert), "pkgrefresh": bool(pkgrefresh), "autoram": autoram}, f)
         _state["updatealert"] = bool(updatealert)
         _state["pkgrefresh"] = bool(pkgrefresh)
+        _state["autoram"] = autoram
         _state["notifications"] = bool(notifications)
         _state["updatecheck"] = bool(updatecheck)
         _state["backupdir"] = backupdir or ""
@@ -3741,12 +3750,79 @@ def configure_notification_monitor():
     _notification_timer.start(60 * 1000, True)
 
 
+_ram_timer = None
+_ram_timer_connection = None
+_ram_busy = False
+_autoram = {"last": 0.0, "gain": 0, "runs": 0}
+
+
+def _ram_done(result):
+    global _ram_busy
+    _ram_busy = False
+    try:
+        before, after = result
+        _autoram["gain"] = after["free"] - before["free"]
+        _autoram["runs"] += 1
+    except Exception:
+        pass
+    return None
+
+
+def _ram_failed(failure):
+    global _ram_busy
+    _ram_busy = False
+    try:
+        dlog_error("auto free RAM: %s" % failure.getErrorMessage())
+    except Exception:
+        pass
+    return None
+
+
+def _ram_tick():
+    """Every minute: cheap /proc/meminfo read; the cleaning itself runs in a worker thread, without sync()."""
+    global _ram_busy
+    mode = _state.get("autoram", "off")
+    if mode not in ("low", "30min"):
+        return
+    if _ram_timer:
+        _ram_timer.start(60 * 1000, True)
+    now = time.time()
+    if _ram_busy or now - _autoram["last"] < (1800 if mode == "30min" else 600):
+        return
+    if mode == "low":
+        m = ram_summary()
+        if m["avail"] >= max(60, int(m["total"] * 0.12)):          # ذاكرة كافية: لا شيء
+            return
+    _ram_busy = True
+    _autoram["last"] = now
+    deferToThread(free_ram, False).addCallbacks(_ram_done, _ram_failed)
+
+
+def configure_ram_monitor():
+    global _ram_timer, _ram_timer_connection
+    if _state.get("autoram", "off") not in ("low", "30min"):
+        if _ram_timer:
+            _ram_timer.stop()
+        return
+    if _ram_timer is None:
+        _ram_timer = eTimer()
+        try:
+            _ram_timer.callback.append(_ram_tick)
+        except AttributeError:
+            _ram_timer_connection = _ram_timer.timeout.connect(_ram_tick)
+    _ram_timer.start(60 * 1000, True)
+
+
 def notification_autostart(reason, **kwargs):
     if reason == 0:
         load_settings()
         configure_notification_monitor()
-    elif _notification_timer:
-        _notification_timer.stop()
+        configure_ram_monitor()
+    else:
+        if _notification_timer:
+            _notification_timer.stop()
+        if _ram_timer:
+            _ram_timer.stop()
 
 
 def update_item():
@@ -4389,7 +4465,7 @@ class GridPanel(PanelBase):
 
 # --------------------------------- شاشة الإعدادات -----------------------------
 SETTINGS_ROWS = ("view", "style", "color", "anim", "splash", "autoupdate", "updatecheck", "updatealert", "pkgrefresh",
-                 "notifications", "mainmenu",
+                 "autoram", "notifications", "mainmenu",
                  "backupdir", "backup", "restore", "ram", "update")
 ACTION_ROWS = ("backup", "restore", "ram", "update")
 
@@ -4428,7 +4504,7 @@ def settings_skin():
                      'transparent="0" zPosition="2"/>' % (i, rect(400 + i * 220, 807, 190, 60), c["card2"], s(14),
                                                           max(1, s(2)), c["line"]))
     parts += [
-        wid("s_note", (390, 862, 1140, 92), font=16, fg=c["muted"], valign="center"),
+        wid("s_note", (390, 856, 1140, 98), font=15, fg=c["muted"], valign="center"),
         '<widget name="key_red" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
         'halign="center" valign="center" zPosition="2"/>' % (rect(500, 955, 440, 66), s(30), c["red"], s(16)),
         '<widget name="key_green" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
@@ -4455,6 +4531,7 @@ class SettingsScreen(Screen):
         self.updatecheck = st["updatecheck"]
         self.updatealert = st["updatealert"]
         self.pkgrefresh = st["pkgrefresh"]
+        self.autoram = st["autoram"]
         self.backupdir = st["backupdir"] or backup_locations()[0][0]
         self.orig = self.orig + (self.updatecheck,)
         cur = st["theme"] if st["theme"] in THEMES else MODERN_ORDER[0]
@@ -4473,6 +4550,7 @@ class SettingsScreen(Screen):
         self["s_note"] = Label(u"Check Plugin Updates: marks installed plugins that have a newer version ('Updates' section).\n"
                                u"Plugin Update Alerts: shows a message on screen (panel closed) when plugins have updates.\n"
                                u"Package Updates (opkg): refreshes the package lists once a day to detect updated packages.\n"
+                               u"Auto Free RAM: releases cache/unused memory in the background, even with the panel closed.\n"
                                u"Backup: saves settings, favorites and install records to the chosen location.\n"
                                u"Notifications: every 6 hours (needs Background Notifications).  Save: apply.")
         self["key_red"] = Label(u"إلغاء | Cancel")
@@ -4502,6 +4580,7 @@ class SettingsScreen(Screen):
             ("Check Plugin Updates", "On" if self.updatecheck else "Off", True),
             ("Plugin Update Alerts", "On" if self.updatealert else "Off", True),
             ("Package Updates (opkg)", "On" if self.pkgrefresh else "Off", True),
+            ("Auto Free RAM", AUTORAM_LABELS[self.autoram], True),
             ("Background Notifications", "On" if self.notifications else "Off", True),
             ("Main Menu", "Show" if self.mainmenu else "Hide", True),
             ("Backup Location", backup_label(self.backupdir), True),
@@ -4570,6 +4649,8 @@ class SettingsScreen(Screen):
             self.updatealert = not self.updatealert
         elif row == "pkgrefresh":
             self.pkgrefresh = not self.pkgrefresh
+        elif row == "autoram":
+            self.autoram = AUTORAM_MODES[(AUTORAM_MODES.index(self.autoram) + step) % len(AUTORAM_MODES)]
         elif row == "notifications":
             self.notifications = not self.notifications
         elif row == "mainmenu":
@@ -4656,7 +4737,8 @@ class SettingsScreen(Screen):
         if self.updatecheck:
             _upd["started"] = False
         save_settings(theme, self.anim, self.mainmenu, self.splash, self.view, self.autoupdate, self.notifications,
-                      self.updatecheck, self.backupdir, self.updatealert, self.pkgrefresh)
+                      self.updatecheck, self.backupdir, self.updatealert, self.pkgrefresh, self.autoram)
+        configure_ram_monitor()
         configure_notification_monitor()
         self.close(changed)
 
@@ -4807,7 +4889,7 @@ def loaded_plugins(limit=40):
     return out
 
 
-def free_ram():
+def free_ram(do_sync=True):
     """Safe RAM release: Python garbage, unused malloc heap, then the kernel page cache. Returns (before, after)."""
     before = ram_summary()
     gc.collect()
@@ -4816,10 +4898,11 @@ def free_ram():
         ctypes.CDLL("libc.so.6").malloc_trim(0)             # يُرجع ذاكرة الـ heap غير المستخدمة للنظام
     except Exception:
         pass
-    try:
-        os.sync()
-    except Exception:
-        pass
+    if do_sync:
+        try:
+            os.sync()
+        except Exception:
+            pass
     for path, val in (("/proc/sys/vm/drop_caches", "3\n"), ("/proc/sys/vm/compact_memory", "1\n")):
         try:
             with open(path, "w") as f:
@@ -4926,7 +5009,7 @@ class RamScreen(Screen):
         self["key_green"] = Label(u"تفريغ الرام | Free RAM")
         self["key_yellow"] = Label(u"عمليات / بلجنات | View")
         self["key_blue"] = Label(u"إعادة تشغيل الواجهة | Restart GUI")
-        self["hint"] = Label(u"OK : stop the selected process     EXIT : close")
+        self["hint"] = Label(self.hintText())
         self["actions"] = ActionMap(
             ["OkCancelActions", "ColorActions", "DirectionActions"],
             {"ok": self.ok, "green": self.doFree, "red": self.askTmp, "yellow": self.toggleView,
@@ -4939,6 +5022,15 @@ class RamScreen(Screen):
             self._conn = self.timer.timeout.connect(self.refresh)
         self.onLayoutFinish.append(self.start)
         self.onClose.append(self.release)
+
+    def hintText(self):
+        base = u"OK : stop the selected process     EXIT : close" if self.mode == "proc" else u"OK : details     EXIT : close"
+        mode = _state.get("autoram", "off")
+        if mode == "off":
+            return base + u"     |     Auto Free RAM: Off (Settings)"
+        last = (u"last run %s (free %+d MB)" % (time.strftime("%H:%M", time.localtime(_autoram["last"])), _autoram["gain"])
+                if _autoram["runs"] else u"not run yet")
+        return base + u"     |     Auto Free RAM: %s, %s" % (AUTORAM_LABELS[mode], last)
 
     def release(self):
         try:
@@ -4978,6 +5070,7 @@ class RamScreen(Screen):
                 if not self._fastTicks:
                     self.timer.start(4000, False)
             self.drawSummary()
+            self["hint"].setText(self.hintText())
             c = tc()
             txt, sec, mut = hexint(c["text"]), hexint(c["second"]), hexint(c["muted"])
             barc = hexint(c["acc"])
@@ -5027,8 +5120,7 @@ class RamScreen(Screen):
 
     def toggleView(self):
         self.mode = "plugins" if self.mode == "proc" else "proc"
-        self["hint"].setText(u"OK : stop the selected process     EXIT : close" if self.mode == "proc"
-                             else u"OK : details     EXIT : close")
+        self["hint"].setText(self.hintText())
         self.refresh()
         self["rows"].moveToIndex(0)
 
