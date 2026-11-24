@@ -76,6 +76,9 @@ wget -q --no-check-certificate https://raw.githubusercontent.com/Belfagor2005/Cr
 ## === # Emil Remove Package - Emil Nabil # = # أداة حذف الاضافات # === ## 
 wget -q "--no-check-certificate" https://github.com/emilnabil/download-plugins/raw/refs/heads/main/EmilRemovePackage/EmilRemovePackage.sh -O - | /bin/sh
 
+## === # Cache Flush Pro - Ismail Elkholy # = # أداة تنظيف الذاكرة # === ## 
+wget -O /tmp/cacheflush-pro.ipk "https://github.com/ismailelkhooly/Ismail-/raw/main/enigma2-plugin-extensions-cacheflush-pro_2.0_all.ipk" && opkg install --force-overwrite /tmp/cacheflush-pro.ipk
+
 ## === # Raed Quick Signal - Fairbird # = # أداة إظهار الإشارة على القنوات # === ## 
 wget https://raw.githubusercontent.com/fairbird/RaedQuickSignal/main/installer.sh -O - | /bin/sh
 
