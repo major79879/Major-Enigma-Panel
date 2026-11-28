@@ -88,7 +88,7 @@ TITLE = "Major Enigma Panel"
 CREDIT = "By John Kamel"
 # تحديث البانل نفسه (إعادة التثبيت) - ملف installer.sh موجود في جذر المستودع (خارج مجلد MajorPanel)
 INSTALLER_URL = GITHUB_RAW + "/installer.sh"
-PLUGIN_VERSION = "4.3"                                        # رقم إصدار هذه النسخة (يظهر V12) - غيّره مع كل إصدار
+PLUGIN_VERSION = "4.4"                                        # رقم إصدار هذه النسخة (يظهر V12) - غيّره مع كل إصدار
 VERSION_URL = GITHUB_RAW + "/Version.txt"                    # ملف الإصدار على GitHub: يحوي رقماً فقط مثل 12
 PLUGIN_IMAGES_URL = GITHUB_RAW + "/MajorPanel/pluginImages.json"
 UPDATE_CMD = 'wget -q --no-check-certificate -O - "%s" | /bin/sh -s norestart' % INSTALLER_URL
@@ -113,7 +113,7 @@ DEFAULT_SETTINGS = {"view": "list", "theme": "blue_fire", "anim": False, "mainme
 # ============================================================================
 
 # ---- مصدر واحد لتعريف الثيمات (يُستخدم في plugin.py وفي توليد الصور) ----
-_BTN = dict(red="#F43F6E", green="#12C97F", yellow="#E9A91A", blue="#2F7CFF")
+_BTN = dict(red="#F43F6E", green="#12C97F", yellow="#F4C800", blue="#2F7CFF")
 _OKS = dict(ok="#34E3A0", bad="#FF4D6D", warn="#FFC53D")
 
 THEMES = {
@@ -333,7 +333,7 @@ THEMES = {
         name="Soft Sky Blue", modern=True, light=True,
         bg="#E6EFF9", card="#FFFFFF", card2="#F1F6FC", line="#C3D5EA", text="#12202F", muted="#52657A",
         accent="#1F66C9", second="#0E8466", sel="#CFE2F8", hdr="#1F66C9", term="#10151B",
-        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        **_BTN,
         ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
         hi="#12202F", selfg="#12202F", selsub="#0B4A94",
         stops=((31, 102, 201), (20, 140, 200), (20, 160, 160), (60, 170, 110), (200, 160, 40)),
@@ -343,7 +343,7 @@ THEMES = {
         name="Mint Green", modern=True, light=True,
         bg="#E4F3EC", card="#FFFFFF", card2="#EFF9F4", line="#BADBC9", text="#10261C", muted="#4F6B5C",
         accent="#0B8A5E", second="#B5650F", sel="#C9EBD9", hdr="#0B8A5E", term="#10151B",
-        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        **_BTN,
         ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
         hi="#10261C", selfg="#10261C", selsub="#8A4C08",
         stops=((11, 138, 94), (20, 160, 120), (90, 170, 80), (190, 160, 40), (210, 110, 40)),
@@ -353,7 +353,7 @@ THEMES = {
         name="Warm Sand", modern=True, light=True,
         bg="#F4ECDD", card="#FFFCF5", card2="#FAF4E8", line="#DACCB3", text="#2A1F14", muted="#6B5B48",
         accent="#B5640F", second="#2D7569", sel="#F1DDBB", hdr="#B5640F", term="#10151B",
-        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        **_BTN,
         ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
         hi="#2A1F14", selfg="#2A1F14", selsub="#1F5B51",
         stops=((181, 100, 15), (200, 130, 20), (190, 160, 40), (110, 150, 90), (45, 117, 105)),
@@ -363,7 +363,7 @@ THEMES = {
         name="Lavender", modern=True, light=True,
         bg="#EDE9F8", card="#FFFFFF", card2="#F5F2FC", line="#CDC4E6", text="#1F1636", muted="#5E5578",
         accent="#6446CC", second="#C23F8B", sel="#DCD3F6", hdr="#6446CC", term="#10151B",
-        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        **_BTN,
         ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
         hi="#1F1636", selfg="#1F1636", selsub="#9A2D69",
         stops=((100, 70, 204), (130, 90, 210), (180, 90, 200), (200, 80, 160), (200, 100, 100)),
@@ -373,7 +373,7 @@ THEMES = {
         name="Rose Petal", modern=True, light=True,
         bg="#F9EBEE", card="#FFFFFF", card2="#FDF3F5", line="#E8C6CE", text="#35151F", muted="#7A5560",
         accent="#C73566", second="#2F8585", sel="#F6D3DC", hdr="#C73566", term="#10151B",
-        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        **_BTN,
         ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
         hi="#35151F", selfg="#35151F", selsub="#1F6464",
         stops=((199, 53, 102), (215, 80, 110), (220, 120, 100), (190, 150, 70), (47, 133, 133)),
@@ -383,7 +383,7 @@ THEMES = {
         name="Aqua Pearl", modern=True, light=True,
         bg="#E3F3F4", card="#FFFFFF", card2="#EEF9FA", line="#B6D9DC", text="#0F2A2E", muted="#4C6E73",
         accent="#0A8794", second="#CB6A2B", sel="#C5E8EB", hdr="#0A8794", term="#10151B",
-        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        **_BTN,
         ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
         hi="#0F2A2E", selfg="#0F2A2E", selsub="#9A4C17",
         stops=((10, 135, 148), (20, 160, 170), (60, 170, 140), (180, 160, 50), (203, 106, 43)),
@@ -393,7 +393,7 @@ THEMES = {
         name="Peach Cream", modern=True, light=True,
         bg="#FBEEE4", card="#FFFDFA", card2="#FEF5EE", line="#EBCDB8", text="#33190D", muted="#7A5C4A",
         accent="#D45A22", second="#3E70C0", sel="#F9D9C3", hdr="#D45A22", term="#10151B",
-        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        **_BTN,
         ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
         hi="#33190D", selfg="#33190D", selsub="#2A5497",
         stops=((212, 90, 34), (225, 120, 50), (225, 160, 60), (150, 150, 110), (62, 112, 192)),
@@ -403,7 +403,7 @@ THEMES = {
         name="Cloud Grey", modern=True, light=True,
         bg="#ECEFF3", card="#FFFFFF", card2="#F4F6F9", line="#CBD2DB", text="#18202B", muted="#5A6676",
         accent="#3E63A8", second="#B8681F", sel="#D5DEEC", hdr="#3E63A8", term="#10151B",
-        red="#D0424F", green="#2C9468", yellow="#BF8410", blue="#2F73C9",
+        **_BTN,
         ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
         hi="#18202B", selfg="#18202B", selsub="#8F4C12",
         stops=((62, 99, 168), (80, 120, 180), (100, 140, 170), (170, 150, 90), (184, 104, 31)),
@@ -549,7 +549,7 @@ THEMES = {
         name="Mandarin Cream", modern=True, light=True,
         bg="#0F2447", card="#EFE9D8", card2="#E5DDC8", line="#C8BEA3", text="#15294A", muted="#5E6A7E",
         accent="#C96800", second="#1F4E8F", sel="#F4C27F", hdr="#E27800", term="#0B1A33",
-        red="#C9444F", green="#2C8F66", yellow="#B5780F", blue="#2F6FC0",
+        **_BTN,
         ok="#1E8A5A", bad="#C23A4B", warn="#A8690A",
         hi="#10244A", selfg="#10244A", selsub="#6B3A00",
         stops=((214, 108, 0), (236, 150, 30), (214, 90, 60), (48, 96, 176), (20, 52, 112)),
@@ -1538,9 +1538,9 @@ def header_xml():
         wid("h_ver", (925, 20, 160, 70), font=36, fg=ring_hex(t), halign="center", valign="center"),
         pixw("cart_img", (1100, 27, 64, 56), z=3),                       # عربة التثبيت المتعدد
         wid("cart_n", (1116, 36, 36, 26), font=22, fg=c["acc"], halign="center", valign="center", z=4),
-        wid("h_server", (1190, 20, 330, 70), font=28, fg=c["warn"], halign="left", valign="center", extra='noWrap="1"'),
-        pixw("bell_img", (1534, 27, 64, 56), z=3),                       # مركز الإشعارات
-        wid("bell_n", (1580, 18, 34, 30), font=20, fg="#FFFFFF", bg="#E5384F", halign="center", valign="center", z=4,
+        wid("h_server", (1190, 20, 266, 70), font=28, fg=c["warn"], halign="left", valign="center", extra='noWrap="1"'),
+        pixw("bell_img", (1466, 27, 64, 56), z=3),                       # مركز الإشعارات
+        wid("bell_n", (1512, 18, 34, 30), font=20, fg="#FFFFFF", bg="#E5384F", halign="center", valign="center", z=4,
             transparent=False, extra='cornerRadius="%d"' % s(15)),
         pixw("dn_img", (1628, 8, 56, 56), z=3),                          # شمس نهاراً / هلال ليلاً
         wid("clock", (1560, 4, 300, 62), font=52, fg=c["hi"], halign="right", valign="center"),
@@ -4500,15 +4500,15 @@ def settings_skin():
         box((360, 135, 1200, 885), c["card"], 24),
         '<widget name="rows" %s backgroundColor="%s" backgroundColorSelected="%s" foregroundColor="%s" '
         'foregroundColorSelected="#FFFFFF" scrollbarMode="showNever"%s transparent="0" zPosition="2"/>' % (
-            rect(390, 175, 1140, 580), c["card"], c["card"] if sa else c["sel"], c["text"], sa),
-        wid("s_prev", (390, 760, 1140, 40), font=26, fg=c["acc"], valign="center"),
+            rect(390, 170, 1140, 512), c["card"], c["card"] if sa else c["sel"], c["text"], sa),   # 8 صفوف مرئية
+        wid("s_prev", (390, 690, 1140, 36), font=26, fg=c["acc"], valign="center"),
     ]
     for i in range(5):                                           # rounded color blocks (recolored in drawSwatches)
         parts.append('<widget name="sw%d" %s backgroundColor="%s" cornerRadius="%d" borderWidth="%d" borderColor="%s" '
-                     'transparent="0" zPosition="2"/>' % (i, rect(400 + i * 220, 807, 190, 60), c["card2"], s(14),
+                     'transparent="0" zPosition="2"/>' % (i, rect(400 + i * 220, 732, 190, 44), c["card2"], s(14),
                                                           max(1, s(2)), c["line"]))
     parts += [
-        wid("s_note", (390, 856, 1140, 98), font=15, fg=c["muted"], valign="center"),
+        wid("s_note", (390, 786, 1140, 160), font=17, fg=c["muted"], valign="top"),
         '<widget name="key_red" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
         'halign="center" valign="center" zPosition="2"/>' % (rect(500, 955, 440, 66), s(30), c["red"], s(16)),
         '<widget name="key_green" %s font="Regular;%d" foregroundColor="#FFFFFF" backgroundColor="%s" cornerRadius="%d" '
