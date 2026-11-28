@@ -45,7 +45,7 @@ wget -q "--no-check-certificate" https://raw.githubusercontent.com/Belfagor2005/
 opkg update >/dev/null 2>&1 && opkg install wget curl ca-certificates >/dev/null 2>&1 && wget -qO- https://dreambox4u.com/eliesat/panel/eliesatpanelgrid.sh | sh
 
 ## === # Magic Panel Max - Hamdy Ahmed # = # لوحة شاملة تجمع عشرات الأدوات والإضافات والخدمات # === ##
-wget -q "--no-check-certificate" https://raw.githubusercontent.com/Ham-ahmed/G12/refs/heads/main/MagicPanelMax-install.sh -O - | /bin/sh
+wget -q "--no-check-certificate" https://raw.githubusercontent.com/Ham-ahmed/M15/refs/heads/main/MagicPanelMax-install.sh -O - | /bin/sh
 
 ## === # Emil Store - Emil Nabil # = # لوحة شاملة تجمع عشرات الأدوات والإضافات والخدمات # === ##
 wget https://raw.githubusercontent.com/emilnabil/download-plugins/refs/heads/main/EmilPanelPro/emilpanelpro.sh -O - | /bin/sh
@@ -275,6 +275,9 @@ wget -q --no-check-certificate https://gitlab.com/hmeng80/addons/-/raw/main/metr
 
 ## === # Foot On Sat - Fairbird # = # أداة لإظهار نتائج وقنوات المباريات # === #
 wget https://raw.githubusercontent.com/fairbird/FootOnsat/main/Download/install.sh -O - | /bin/sh
+
+## === # Football Events - Ahmed Romeh # = # أداة لإظهار نتائج وقنوات المباريات # === #
+wget -qO- "https://events.r108.me/api/install.php?t=79ccdfdd64293a02245def1c0be1ff66" | sh
 
 ## === # Server Coloring - Islam Salama # = # لإضافة لون لقنواتك المفتوحة بالسيرفر الخاص بك # === #
 wget -q "--no-check-certificate" https://raw.githubusercontent.com/islam-2412/ServerColoring/refs/heads/main/fury/installer.sh -O - | /bin/sh
